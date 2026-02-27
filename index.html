@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meridian — Investment Platform</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+
+<!-- ── TOAST ── -->
+<div id="toast" class="toast"></div>
+
+<!-- ══════════════════════════════════════════════
+     HELP MODAL
+══════════════════════════════════════════════ -->
+<div id="helpModal" class="help-modal-backdrop">
+  <div class="help-modal">
+
+    <!-- Header -->
+    <div class="help-modal-header">
+      <div class="help-header-left">
+        <div class="help-logo-mark">?</div>
+        <div>
+          <div class="help-modal-title">How Meridian Works</div>
+          <div class="help-modal-sub">AI-powered guide · Click any topic to learn more</div>
+        </div>
+      </div>
+      <button class="help-close-btn" onclick="closeHelp()" aria-label="Close help">✕</button>
+    </div>
+
+    <!-- Body -->
+    <div class="help-modal-body">
+
+      <!-- Left nav -->
+      <div class="help-nav-col">
+        <div class="help-nav-label">Topics</div>
+        <div id="helpNav" class="help-nav-list"></div>
+
+        <div class="help-nav-tip">
+          <div class="help-tip-icon">✦</div>
+          <div>Select any topic for a plain-English explanation of how that part of Meridian works.</div>
+        </div>
+      </div>
+
+      <!-- Right content -->
+      <div class="help-content-col">
+        <div class="help-content-header">
+          <div id="helpSectionTitle" class="help-content-title">—</div>
+          <span id="helpSectionBadge" class="badge badge-gold">—</span>
+        </div>
+
+        <div
+          id="helpContent"
+          class="help-content-body"
+          style="transition: opacity 0.15s ease;"
+        ></div>
+      </div>
+
+    </div><!-- /help-modal-body -->
+
+    <!-- Footer -->
+    <div class="help-modal-footer">
+      <div class="help-footer-status">✦ Meridian User Guide</div>
+      <div class="help-footer-nav">
+        <button class="btn btn-ghost btn-sm" onclick="showHelpSection(Math.max(0, helpState.activeSection - 1))">← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="showHelpSection(Math.min(HELP_SECTIONS.length - 1, helpState.activeSection + 1))">Next →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── ADD POSITION MODAL ── -->
+<div id="positionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; align-items:center; justify-content:center;">
+  <div style="background:var(--surface); border:1px solid var(--border2); border-radius:var(--r-lg); padding:28px 32px; width:100%; max-width:440px; position:relative;">
+    <div style="font-family:var(--serif); font-size:18px; font-weight:700; margin-bottom:4px;">Add Position</div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:20px;">Recording <strong id="modalSymbol" style="color:var(--gold);">—</strong> to portfolio</div>
+
+    <div class="grid-2" style="gap:14px; margin-bottom:14px;">
+      <div class="field">
+        <label>Shares</label>
+        <input id="modalShares" type="number" min="0.01" step="0.01" placeholder="e.g. 10"/>
+      </div>
+      <div class="field">
+        <label>Buy Price</label>
+        <input id="modalPrice" type="number" min="0.01" step="0.01"/>
+      </div>
+    </div>
+    <div id="modalCost" style="font-size:11px; color:var(--gold); margin-bottom:12px; min-height:16px;"></div>
+
+    <div class="grid-2" style="gap:14px; margin-bottom:14px;">
+      <div class="field">
+        <label>Buy Date</label>
+        <input id="modalDate" type="date"/>
+      </div>
+      <div class="field">
+        <label>Timeframe</label>
+        <select id="modalTf">
+          <option value="scalp">Scalp (intraday)</option>
+          <option value="swing" selected>Swing (days–weeks)</option>
+          <option value="longterm">Long-term (months+)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:14px;">
+      <label>Risk Level (0 = Conservative, 100 = Speculative)</label>
+      <input id="modalRisk" type="number" min="0" max="100" value="50"/>
+    </div>
+
+    <div class="field" style="margin-bottom:20px;">
+      <label>Notes (optional)</label>
+      <input id="modalNotes" type="text" placeholder="e.g. earnings play, long-term hold"/>
+    </div>
+
+    <div class="flex gap-12 justify-between">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePosition()">Save Position →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ APP SHELL ═══════════════════════════ -->
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">MERIDIAN</div>
+      <div class="logo-sub">Investment Platform</div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" data-view="dashboard">
+        <span class="nav-icon">◈</span> Dashboard
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Tools</div>
+      <div class="nav-item" data-view="analysis">
+        <span class="nav-icon">⟁</span> Analysis
+      </div>
+      <div class="nav-item" data-view="portfolio">
+        <span class="nav-icon">▣</span> Portfolio
+        <span class="nav-badge" id="portfolioBadge">0</span>
+      </div>
+      <div class="nav-item" data-view="watchlist">
+        <span class="nav-icon">◎</span> Watchlist
+        <span class="nav-badge" id="watchlistBadge">0</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">System</div>
+      <div class="nav-item" data-view="settings">
+        <span class="nav-icon">⊙</span> Settings
+      </div>
+      <div class="nav-item" onclick="openHelp('overview')" style="cursor:pointer;">
+        <span class="nav-icon">?</span> How It Works
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div>Powered by Yahoo Finance</div>
+      <div style="margin-top:3px; color:var(--dim);">No backend required</div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <button class="help-topbar-btn" onclick="openContextHelp()" title="How does this work?">
+          <span class="help-topbar-icon">?</span>
+          <span class="help-topbar-label">How it works</span>
+        </button>
+        <div class="live-dot"></div>
+        <div class="topbar-time" id="topbarTime"></div>
+      </div>
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-content">
+
+      <!-- ═══════════ DASHBOARD VIEW ═══════════ -->
+      <div class="view active" id="view-dashboard">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Your portfolio at a glance</div>
+
+        <!-- KPI Row -->
+        <div class="grid-4 mb-24">
+          <div class="stat-tile">
+            <div class="stat-label">Portfolio Value</div>
+            <div class="stat-value" id="dTotalValue">—</div>
+            <div class="stat-sub">market value of all positions</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Total P&L</div>
+            <div class="stat-value" id="dTotalPnL">—</div>
+            <div class="stat-sub">unrealised gain/loss</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Positions</div>
+            <div class="stat-value" id="dPositions">0</div>
+            <div class="stat-sub">stocks held</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Watchlist</div>
+            <div class="stat-value" id="dWatchlist">0</div>
+            <div class="stat-sub">symbols tracked</div>
+          </div>
+        </div>
+
+        <div class="grid-2 gap-16">
+          <!-- Signal alerts -->
+          <div class="card">
+            <div class="card-title">Active Signals</div>
+            <div style="display:flex; gap:16px; margin-bottom:14px;">
+              <span class="badge badge-buy">▲ Buy: <strong id="dBuys">0</strong></span>
+              <span class="badge badge-sell">▼ Sell: <strong id="dSells">0</strong></span>
+            </div>
+            <div id="dSignalList"></div>
+          </div>
+
+          <!-- Portfolio mini -->
+          <div class="card">
+            <div class="card-title flex justify-between items-center" style="display:flex;">
+              <span>Holdings</span>
+              <button class="btn btn-ghost btn-xs" onclick="switchView('portfolio')">View All →</button>
+            </div>
+            <div id="dPosList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ ANALYSIS VIEW ═══════════ -->
+      <div class="view" id="view-analysis">
+        <div class="page-title">Signal Analysis</div>
+        <div class="page-sub">Multi-indicator optimised buy/sell signals · Powered by Yahoo Finance</div>
+
+        <!-- Controls -->
+        <div class="card mb-16">
+          <div class="card-title">Analysis Parameters</div>
+
+          <!-- Timeframe -->
+          <div class="field mb-16">
+            <label>Investment Timeframe</label>
+            <div class="segment" id="tfSegment">
+              <button class="seg-btn" data-tf="scalp">Scalp</button>
+              <button class="seg-btn active" data-tf="swing">Swing</button>
+              <button class="seg-btn" data-tf="longterm">Long-term</button>
+            </div>
+          </div>
+
+          <div class="grid-3 mb-16" style="gap:16px;">
+            <div class="field">
+              <label>Ticker Symbol</label>
+              <input id="aSymbol" type="text" value="AAPL" placeholder="e.g. AAPL, TSLA, BTC-USD"/>
+            </div>
+            <div class="field">
+              <label>Data Period (months)</label>
+              <input id="aMonths" type="number" value="6" min="1" max="60"/>
+            </div>
+            <div class="field">
+              <label>Buy Date (optional)</label>
+              <input id="aBuyDate" type="date"/>
+            </div>
+          </div>
+
+          <!-- Risk slider -->
+          <div class="field mb-16">
+            <label>Risk Profile — <span id="aRiskLabel" style="color:var(--gold);">Balanced</span></label>
+            <input type="range" class="risk-slider" id="aRiskSlider" min="0" max="100" value="50"/>
+            <div class="risk-labels">
+              <span class="risk-label-safe">◀ Conservative</span>
+              <span style="color:var(--muted); font-size:9px;" id="aRiskDesc">Standard sensitivity. Mirrors default optimised settings.</span>
+              <span class="risk-label-risk">Speculative ▶</span>
+            </div>
+          </div>
+
+          <div class="flex gap-12 items-center flex-wrap">
+            <button class="btn btn-primary" id="aRunBtn" onclick="runAnalysis()">
+              Run Analysis →
+            </button>
+            <div class="alert alert-warn" id="aWeekendWarn" style="margin:0; padding:5px 12px;"></div>
+          </div>
+
+          <div class="alert alert-error mt-8" id="aAlert"></div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-overlay" id="aLoading">
+          <div class="spinner"></div>
+          <div class="steps">
+            <div class="step active" id="aLoading-s1"><div class="step-bullet">1</div>Fetching Yahoo Finance data</div>
+            <div class="step" id="aLoading-s2"><div class="step-bullet">2</div>Computing indicators</div>
+            <div class="step" id="aLoading-s3"><div class="step-bullet">3</div>Optimising signal weights (400 trials)</div>
+            <div class="step" id="aLoading-s4"><div class="step-bullet">4</div>Rendering charts</div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="aResults" style="display:none;">
+
+          <!-- Header row -->
+          <div class="flex items-center justify-between mb-16 flex-wrap gap-12">
+            <div>
+              <div style="font-family:var(--serif); font-size:32px; font-weight:800; line-height:1;" id="aResTicker">—</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:3px;">
+                <span id="aResName"></span>
+                <span style="margin-left:6px; color:var(--dim);" id="aResExchange"></span>
+              </div>
+            </div>
+            <div class="flex gap-12 items-center flex-wrap">
+              <span class="badge badge-neu" id="aResSignal">—</span>
+              <span style="font-size:18px; color:var(--text2);" id="aResPrice">—</span>
+              <button class="btn btn-ghost btn-sm" id="aBtnAddWatchlist">+ Watchlist</button>
+              <button class="btn btn-primary btn-sm" id="aBtnAddPortfolio">+ Portfolio</button>
+            </div>
+          </div>
+
+          <!-- KPIs -->
+          <div class="grid-4 mb-16">
+            <div class="stat-tile">
+              <div class="stat-label">Optimised Return</div>
+              <div class="stat-value" id="aResProfit">—</div>
+              <div class="stat-sub">backtested strategy</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Buy & Hold Return</div>
+              <div class="stat-value text-muted" id="aResBah">—</div>
+              <div class="stat-sub">passive benchmark</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Win Rate</div>
+              <div class="stat-value" id="aResWinRate">—</div>
+              <div class="stat-sub">profitable trades</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Max Drawdown</div>
+              <div class="stat-value neg" id="aResDrawdown">—</div>
+              <div class="stat-sub">worst peak-to-trough</div>
+            </div>
+          </div>
+
+          <!-- Risk + Trade metrics -->
+          <div class="grid-2 mb-16">
+            <div class="card">
+              <div class="card-title">Risk Metrics</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <div class="stat-label">Annualised Volatility</div>
+                  <div style="font-size:14px; margin-top:3px;" id="aResVol">—</div>
+                </div>
+                <div>
+                  <div class="stat-label">ATR (14)</div>
+                  <div style="font-size:14px; margin-top:3px;" id="aResATR">—</div>
+                </div>
+                <div>
+                  <div class="stat-label">Suggested Stop-Loss</div>
+                  <div style="font-size:14px; margin-top:3px; color:var(--red);" id="aResStopLoss">—</div>
+                </div>
+                <div>
+                  <div class="stat-label">Position Size</div>
+                  <div style="font-size:14px; margin-top:3px; color:var(--gold);" id="aResPosSize">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Trade Statistics</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <div class="stat-label">Total Trades</div>
+                  <div style="font-size:14px; margin-top:3px;" id="aResTrades">—</div>
+                </div>
+                <div>
+                  <div class="stat-label">Win Rate</div>
+                  <div style="font-size:14px; margin-top:3px;" id="aResWinRate2">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Chart -->
+          <div class="card-title" style="padding:0 0 10px; border-bottom:1px solid var(--border); margin-bottom:12px;">Price Chart · Signals</div>
+          <div class="chart-box mb-8"><div id="aChartMain"></div></div>
+
+          <!-- Sub charts -->
+          <div class="grid-2 mb-16">
+            <div>
+              <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">MACD</div>
+              <div class="chart-box"><div id="aChartMACD"></div></div>
+            </div>
+            <div>
+              <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">RSI (14)</div>
+              <div class="chart-box"><div id="aChartRSI"></div></div>
+            </div>
+          </div>
+
+          <!-- Volatility Chart -->
+          <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Volatility & ATR</div>
+          <div class="chart-box mb-16"><div id="aChartVol"></div></div>
+
+          <!-- Optimised Weights -->
+          <div class="card mb-16">
+            <div class="card-title">Optimised Indicator Weights</div>
+            <div id="aWeights"></div>
+          </div>
+
+          <!-- Fundamentals -->
+          <div class="card" id="aFundamentals" style="display:none;">
+            <div class="card-title">Fundamental Data</div>
+            <div class="fund-grid">
+              <div class="fund-item"><div class="fund-label">P/E Ratio (TTM)</div><div class="fund-val" id="aFundPE">—</div></div>
+              <div class="fund-item"><div class="fund-label">Forward P/E</div><div class="fund-val" id="aFundFwdPE">—</div></div>
+              <div class="fund-item"><div class="fund-label">EPS (TTM)</div><div class="fund-val" id="aFundEPS">—</div></div>
+              <div class="fund-item"><div class="fund-label">Market Cap</div><div class="fund-val" id="aFundMktCap">—</div></div>
+              <div class="fund-item"><div class="fund-label">Beta</div><div class="fund-val" id="aFundBeta">—</div></div>
+              <div class="fund-item"><div class="fund-label">Dividend Yield</div><div class="fund-val" id="aFundDivYield">—</div></div>
+              <div class="fund-item"><div class="fund-label">52-Week High</div><div class="fund-val" id="aFund52H">—</div></div>
+              <div class="fund-item"><div class="fund-label">52-Week Low</div><div class="fund-val" id="aFund52L">—</div></div>
+              <div class="fund-item"><div class="fund-label">Avg Volume (10D)</div><div class="fund-val" id="aFundAvgVol">—</div></div>
+            </div>
+          </div>
+
+        </div><!-- /aResults -->
+      </div><!-- /view-analysis -->
+
+      <!-- ═══════════ PORTFOLIO VIEW ═══════════ -->
+      <div class="view" id="view-portfolio">
+        <div class="flex justify-between items-center mb-24 flex-wrap gap-12">
+          <div>
+            <div class="page-title">Portfolio</div>
+            <div class="page-sub">Track your positions · Live signals</div>
+          </div>
+          <div class="flex gap-12 flex-wrap">
+            <button class="btn btn-ghost btn-sm" onclick="exportPortfolioCSV()">↓ Export CSV</button>
+            <button class="btn btn-ghost btn-sm" id="pRefreshAll" onclick="refreshAllPositions()">↻ Refresh All</button>
+          </div>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="grid-4 mb-24">
+          <div class="stat-tile">
+            <div class="stat-label">Total Value</div>
+            <div class="stat-value" id="pTotalValue">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Total P&L</div>
+            <div class="stat-value" id="pTotalPnL">—</div>
+            <div class="stat-sub" id="pTotalPnLPct"></div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Positions</div>
+            <div class="stat-value" id="pPositionCount">0</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">Quick Add</div>
+            <div style="margin-top:6px; display:flex; gap:8px;">
+              <input id="pQuickAdd" type="text" placeholder="TICKER" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:var(--r-sm); outline:none; width:90px;"/>
+              <button class="btn btn-primary btn-sm" onclick="analyseFromWatchlist(document.getElementById('pQuickAdd').value.trim().toUpperCase())">Go</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Position cards grid -->
+        <div class="grid-2" id="pPositionGrid">
+          <div class="empty-state" style="grid-column:1/-1;">
+            <div class="empty-icon">💼</div>
+            <div class="empty-title">Portfolio is empty</div>
+            <div>Analyse a stock and click "Add to Portfolio"</div>
+          </div>
+        </div>
+
+        <!-- Correlation matrix -->
+        <div id="pCorrelation" style="display:none; margin-top:28px;">
+          <div class="card-title" style="padding:0 0 10px; border-bottom:1px solid var(--border); margin-bottom:12px;">Correlation Matrix · 60-day returns</div>
+          <div class="chart-box"><div id="pCorrChart"></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ WATCHLIST VIEW ═══════════ -->
+      <div class="view" id="view-watchlist">
+        <div class="flex justify-between items-center mb-24 flex-wrap gap-12">
+          <div>
+            <div class="page-title">Watchlist</div>
+            <div class="page-sub">Monitor symbols · One-click analysis</div>
+          </div>
+          <div class="flex gap-12 flex-wrap">
+            <div style="display:flex; gap:8px;">
+              <input id="wAddInput" type="text" placeholder="Add symbol…" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 12px; border-radius:var(--r-sm); outline:none; width:140px;"
+                onkeydown="if(event.key==='Enter') addWatchlistManual()"/>
+              <button class="btn btn-primary btn-sm" onclick="addWatchlistManual()">Add</button>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="wRefreshBtn" onclick="refreshWatchlist()">↻ Refresh Signals</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0; overflow:hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Signal</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="wList">
+              <tr><td colspan="6" class="empty-state" style="text-align:center; padding:48px;">
+                <div class="empty-icon">👁</div>
+                <div class="empty-title">Watchlist is empty</div>
+                <div>Add symbols above or from Analysis view</div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══════════ SETTINGS VIEW ═══════════ -->
+      <div class="view" id="view-settings">
+        <div class="page-title">Settings</div>
+        <div class="page-sub">Configure defaults and manage data</div>
+
+        <div class="grid-2 gap-16">
+          <div class="card">
+            <div class="card-title">Analysis Defaults</div>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div class="field">
+                <label>Default Risk Level (0–100)</label>
+                <input id="sDefaultRisk" type="number" min="0" max="100" value="50"/>
+              </div>
+              <div class="field">
+                <label>Default Timeframe</label>
+                <select id="sDefaultTf">
+                  <option value="scalp">Scalp (intraday)</option>
+                  <option value="swing">Swing (days–weeks)</option>
+                  <option value="longterm">Long-term (months+)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Default Data Period (months)</label>
+                <input id="sDefaultPeriod" type="number" min="1" max="60" value="6"/>
+              </div>
+              <div class="field">
+                <label>Initial Backtest Balance ($)</label>
+                <input id="sInitialBalance" type="number" min="100" value="10000"/>
+              </div>
+              <button class="btn btn-primary" onclick="saveSettingsForm()">Save Settings</button>
+              <div class="alert" id="sAlert"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">About Meridian</div>
+            <div style="font-size:12px; color:var(--text2); line-height:1.8;">
+              <p style="margin-bottom:10px;">Meridian is a fully client-side investment analysis platform. All data is fetched live from Yahoo Finance. No backend server, no API key, no login required.</p>
+              <p style="margin-bottom:10px;">Portfolio and watchlist data is stored in your browser's <code style="font-size:10px; background:var(--surface2); padding:1px 4px; border-radius:2px;">localStorage</code>. Clearing your browser data will erase it.</p>
+              <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+                <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">Indicators Used</div>
+                <div class="flex flex-wrap gap-8">
+                  <span class="badge badge-gold">RSI</span>
+                  <span class="badge badge-gold">MACD</span>
+                  <span class="badge badge-gold">Bollinger</span>
+                  <span class="badge badge-gold">EMA 200/100/50/25</span>
+                  <span class="badge badge-gold">Ichimoku</span>
+                  <span class="badge badge-gold">ATR</span>
+                  <span class="badge badge-gold">Ann. Volatility</span>
+                </div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="card-title">Data Management</div>
+            <button class="btn btn-danger btn-sm" onclick="clearAllData()">⚠ Clear All Data</button>
+            <div style="font-size:10px; color:var(--muted); margin-top:8px;">Removes portfolio, watchlist and settings from localStorage.</div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-title">Disclaimer</div>
+          <div style="font-size:11px; color:var(--muted); line-height:1.9;">
+            Meridian is for <strong style="color:var(--text2);">informational and educational purposes only</strong>. It does not constitute financial advice. Past performance of backtested strategies does not guarantee future results. Always do your own research and consult a qualified financial advisor before making investment decisions. The optimiser finds historically-best weights over the analysed period — this is in-sample and subject to overfitting.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Toast style -->
+<style>
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 10px 20px;
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow);
+  z-index: 1000;
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  white-space: nowrap;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+.toast.toast-error { border-color: var(--red-border); color: var(--red); }
+.toast.toast-ok    { border-color: var(--green-border); color: var(--green); }
+</style>
+
+<script src="js/indicators.js"></script>
+<script src="js/optimiser.js"></script>
+<script src="js/portfolio.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+<script src="js/help.js"></script>
+
+</body>
+</html>
