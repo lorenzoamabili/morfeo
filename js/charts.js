@@ -1,31 +1,31 @@
 // ═══════════════════════════════════════════════════════════════
-// MERIDIAN v3 — charts.js
+// MORFEO v3 — charts.js
 // All Plotly chart rendering functions
 // ═══════════════════════════════════════════════════════════════
 
 const CHART_THEME = {
-  paper:   '#0f1118',
-  plot:    '#0b0d12',
-  grid:    '#1c1f2e',
-  line:    '#252836',
-  text:    '#9da3c0',
-  text2:   '#5a5e78',
-  gold:    '#c9a84c',
-  green:   '#3dba7e',
-  red:     '#e04f5f',
-  blue:    '#4f7ef8',
-  orange:  '#e07a3a',
-  muted:   '#525878',
+  paper: '#0f1118',
+  plot: '#0b0d12',
+  grid: '#1c1f2e',
+  line: '#252836',
+  text: '#9da3c0',
+  text2: '#5a5e78',
+  gold: '#c9a84c',
+  green: '#3dba7e',
+  red: '#e04f5f',
+  blue: '#4f7ef8',
+  orange: '#e07a3a',
+  muted: '#525878',
 };
 
 const BASE_LAYOUT = {
   paper_bgcolor: CHART_THEME.paper,
-  plot_bgcolor:  CHART_THEME.plot,
+  plot_bgcolor: CHART_THEME.plot,
   font: { family: "'IBM Plex Mono', monospace", color: CHART_THEME.text, size: 11 },
   xaxis: {
     gridcolor: CHART_THEME.grid,
     linecolor: CHART_THEME.line,
-    tickfont:  { color: CHART_THEME.text2, size: 10 },
+    tickfont: { color: CHART_THEME.text2, size: 10 },
     showspikes: true,
     spikecolor: '#32364a',
     spikethickness: 1,
@@ -34,7 +34,7 @@ const BASE_LAYOUT = {
   yaxis: {
     gridcolor: CHART_THEME.grid,
     linecolor: CHART_THEME.line,
-    tickfont:  { color: CHART_THEME.text2, size: 10 },
+    tickfont: { color: CHART_THEME.text2, size: 10 },
     showspikes: true,
     spikecolor: '#32364a',
     spikethickness: 1,
@@ -69,11 +69,11 @@ function renderAnalysisChart(containerId, data, ind, net, options = {}) {
   const { dates, close } = data;
   const n = 0; // signal threshold
 
-  const maxSig   = Math.max(...net.map(Math.abs), 1);
-  const normSig  = net.map(v => Math.abs(v) / maxSig);
+  const maxSig = Math.max(...net.map(Math.abs), 1);
+  const normSig = net.map(v => Math.abs(v) / maxSig);
 
-  const buyIdx   = net.map((v, i) => v > n ? i : -1).filter(i => i >= 0);
-  const sellIdx  = net.map((v, i) => v < -n ? i : -1).filter(i => i >= 0);
+  const buyIdx = net.map((v, i) => v > n ? i : -1).filter(i => i >= 0);
+  const sellIdx = net.map((v, i) => v < -n ? i : -1).filter(i => i >= 0);
 
   const traces = [
     // Bollinger bands
@@ -129,7 +129,7 @@ function renderAnalysisChart(containerId, data, ind, net, options = {}) {
       marker: {
         symbol: 'triangle-up', size: 11,
         color: buyIdx.map(i => normSig[i]),
-        colorscale: [[0,'#a8f0cb'], [0.5, CHART_THEME.green], [1, '#1a6b4a']],
+        colorscale: [[0, '#a8f0cb'], [0.5, CHART_THEME.green], [1, '#1a6b4a']],
         line: { width: 0 },
       },
     },
@@ -143,7 +143,7 @@ function renderAnalysisChart(containerId, data, ind, net, options = {}) {
       marker: {
         symbol: 'triangle-down', size: 11,
         color: sellIdx.map(i => normSig[i]),
-        colorscale: [[0,'#f5b0b8'], [0.5, CHART_THEME.red], [1, '#7a1020']],
+        colorscale: [[0, '#f5b0b8'], [0.5, CHART_THEME.red], [1, '#7a1020']],
         line: { width: 0 },
       },
     },
@@ -227,10 +227,14 @@ function renderRSIChart(containerId, data, ind) {
       tickvals: [30, 70],
     },
     shapes: [
-      { type:'line', x0: dates[0], x1: dates[dates.length-1], y0: 70, y1: 70,
-        line: { color: 'rgba(224,79,95,0.4)', width: 1, dash: 'dot' } },
-      { type:'line', x0: dates[0], x1: dates[dates.length-1], y0: 30, y1: 30,
-        line: { color: 'rgba(61,186,126,0.4)', width: 1, dash: 'dot' } },
+      {
+        type: 'line', x0: dates[0], x1: dates[dates.length - 1], y0: 70, y1: 70,
+        line: { color: 'rgba(224,79,95,0.4)', width: 1, dash: 'dot' }
+      },
+      {
+        type: 'line', x0: dates[0], x1: dates[dates.length - 1], y0: 30, y1: 30,
+        line: { color: 'rgba(61,186,126,0.4)', width: 1, dash: 'dot' }
+      },
     ],
   }, PLOTLY_CONFIG);
 }
@@ -241,9 +245,9 @@ function renderEquityCurve(containerId, dates, close, net, benchmarkClose, optio
   const { initialBalance = 10000, riskLevel = 0.5 } = options;
 
   // Build equity curve
-  let balance   = Math.max(initialBalance, close[0]);
-  let position  = 0;
-  let buyPrice  = 0;
+  let balance = Math.max(initialBalance, close[0]);
+  let position = 0;
+  let buyPrice = 0;
   let lastAction = null;
   const threshold = (1 - riskLevel) * 0.3;
 
@@ -270,7 +274,7 @@ function renderEquityCurve(containerId, dates, close, net, benchmarkClose, optio
     {
       x: dates, y: equityValues,
       type: 'scatter', mode: 'lines',
-      name: 'Meridian Strategy',
+      name: 'Morfeo Strategy',
       line: { color: CHART_THEME.gold, width: 2 },
       fill: 'tozeroy', fillcolor: 'rgba(201,168,76,0.05)',
     },
@@ -296,9 +300,9 @@ function renderCorrelationHeatmap(containerId, symbols, matrix) {
   const z = matrix;
 
   const colorscale = [
-    [0,   '#e04f5f'],
+    [0, '#e04f5f'],
     [0.5, '#1c1f2e'],
-    [1,   '#3dba7e'],
+    [1, '#3dba7e'],
   ];
 
   const traces = [{

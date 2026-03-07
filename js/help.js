@@ -1,44 +1,44 @@
 // ═══════════════════════════════════════════════════════════════
-// MERIDIAN — help.js
+// MORFEO — help.js
 // Static help content. All explanations written by Claude,
 // hardcoded here. No API calls, no loading states, instant display.
 // ═══════════════════════════════════════════════════════════════
 
 const HELP_SECTIONS = [
   {
-    id:         'overview',
-    icon:       '◈',
-    title:      'What is Meridian?',
-    badge:      'Start Here',
+    id: 'overview',
+    icon: '◈',
+    title: 'What is Morfeo?',
+    badge: 'Start Here',
     badgeColor: 'badge-gold',
     html: `
-      <p class="help-para help-para-lead">Meridian is a stock analysis and portfolio tracking platform that runs entirely in your browser. There is no server, no account, and no subscription — you open it, type a ticker, and get a full technical analysis in seconds. All market data is fetched live from Yahoo Finance.</p>
-      <p class="help-para">The core idea is that no single indicator is reliably right on its own. Meridian runs five different indicator families simultaneously — RSI, MACD, Bollinger Bands, EMA trend, and Ichimoku Cloud — then uses an optimiser to find the weight combination that would have worked best for that specific stock over the period you chose. The result is a single combined signal rather than five contradictory ones.</p>
+      <p class="help-para help-para-lead">Morfeo is a stock analysis and portfolio tracking platform that runs entirely in your browser. There is no server, no account, and no subscription — you open it, type a ticker, and get a full technical analysis in seconds. All market data is fetched live from Yahoo Finance.</p>
+      <p class="help-para">The core idea is that no single indicator is reliably right on its own. Morfeo runs five different indicator families simultaneously — RSI, MACD, Bollinger Bands, EMA trend, and Ichimoku Cloud — then uses an optimiser to find the weight combination that would have worked best for that specific stock over the period you chose. The result is a single combined signal rather than five contradictory ones.</p>
       <p class="help-para">The basic workflow is: <strong>Analyse</strong> a stock to get a signal and see the charts, then <strong>Add to Portfolio</strong> to track your position with live P&L, or <strong>Add to Watchlist</strong> to monitor it without holding a position. You can refresh signals any time to see if anything has changed.</p>
-      <p class="help-para">Meridian works for different trading styles. Scalp mode uses hourly bars and tight indicator windows for intraday traders. Swing mode uses daily bars for trades lasting days to weeks. Long-term mode uses weekly bars for buy-and-hold investors. Each mode automatically tunes the indicators to match the timeframe.</p>
+      <p class="help-para">Morfeo works for different trading styles. Scalp mode uses hourly bars and tight indicator windows for intraday traders. Swing mode uses daily bars for trades lasting days to weeks. Long-term mode uses weekly bars for buy-and-hold investors. Each mode automatically tunes the indicators to match the timeframe.</p>
     `,
   },
   {
-    id:         'analysis',
-    icon:       '⟁',
-    title:      'Signal Analysis',
-    badge:      'Core Feature',
+    id: 'analysis',
+    icon: '⟁',
+    title: 'Signal Analysis',
+    badge: 'Core Feature',
     badgeColor: 'badge-buy',
     html: `
       <p class="help-para help-para-lead">To run an analysis, enter a ticker symbol (e.g. <strong>AAPL</strong>, <strong>TSLA</strong>, <strong>BTC-USD</strong>), choose a timeframe, set how many months of historical data to use, optionally enter a buy date if you already own the stock, and set your risk profile. Then click <strong>Run Analysis →</strong>.</p>
-      <p class="help-para">Behind the scenes, Meridian fetches OHLCV data from Yahoo Finance, computes all five indicator families, then runs 400 optimisation trials to find the indicator weight combination that maximises backtested return for that stock and period. This takes a few seconds. The optimiser is doing real work — it's not just applying fixed rules.</p>
+      <p class="help-para">Behind the scenes, Morfeo fetches OHLCV data from Yahoo Finance, computes all five indicator families, then runs 400 optimisation trials to find the indicator weight combination that maximises backtested return for that stock and period. This takes a few seconds. The optimiser is doing real work — it's not just applying fixed rules.</p>
       <p class="help-para">The results show the <strong>optimised strategy return</strong> versus a simple buy-and-hold benchmark. If the strategy return is higher, the indicators found meaningful signal in the data. You'll also see win rate, number of trades, and max drawdown — the worst loss period the strategy experienced. Below the stats, the main chart shows buy signals as green triangles and sell signals as red triangles directly on the price line.</p>
       <p class="help-para">Once you have results, use the <strong>Add to Portfolio</strong> button to record your position, or <strong>Add to Watchlist</strong> to track the symbol without a position. The weight bars below the chart show which indicators the optimiser leaned on most heavily for this particular stock.</p>
     `,
   },
   {
-    id:         'indicators',
-    icon:       '〜',
-    title:      'How Indicators Work',
-    badge:      'Technical',
+    id: 'indicators',
+    icon: '〜',
+    title: 'How Indicators Work',
+    badge: 'Technical',
     badgeColor: 'badge-hold',
     html: `
-      <p class="help-para help-para-lead">Meridian combines five indicator families into a single weighted signal. Rather than treating them equally, the optimiser finds which combination worked best historically for the specific stock you're analysing. Here's what each one measures.</p>
+      <p class="help-para help-para-lead">Morfeo combines five indicator families into a single weighted signal. Rather than treating them equally, the optimiser finds which combination worked best historically for the specific stock you're analysing. Here's what each one measures.</p>
       <p class="help-para"><strong>RSI (Relative Strength Index)</strong> is a momentum oscillator that moves between 0 and 100. When RSI falls below 30, the stock is considered oversold — a potential buy zone. When it rises above 70, it's overbought — a potential sell zone. RSI is fast-moving and works well for spotting short-term exhaustion.</p>
       <p class="help-para"><strong>MACD (Moving Average Convergence Divergence)</strong> measures the relationship between two exponential moving averages. A positive signal line suggests upward momentum; a negative signal line suggests downward momentum. The histogram shows whether momentum is accelerating or fading — watch for the bars shrinking toward zero as a warning that a reversal may be coming.</p>
       <p class="help-para"><strong>Bollinger Bands</strong> are volatility envelopes drawn two standard deviations above and below a 20-day moving average. When price touches or breaks below the lower band, it's statistically stretched to the downside — a potential buy. When it touches the upper band, it may be stretched to the upside — a potential sell. Bands also widen during volatile periods and narrow during quiet ones.</p>
@@ -46,10 +46,10 @@ const HELP_SECTIONS = [
     `,
   },
   {
-    id:         'risk',
-    icon:       '⚖',
-    title:      'Risk Profile & Timeframes',
-    badge:      'Important',
+    id: 'risk',
+    icon: '⚖',
+    title: 'Risk Profile & Timeframes',
+    badge: 'Important',
     badgeColor: 'badge-sell',
     html: `
       <p class="help-para help-para-lead">The <strong>timeframe</strong> selector changes the bar size and indicator windows used for the analysis. <strong>Scalp</strong> fetches 1-hour bars with short indicator periods, suited to intraday traders who open and close positions within a day. <strong>Swing</strong> uses daily bars with medium windows, suited to trades lasting a few days to a few weeks. <strong>Long-term</strong> uses weekly bars with longer windows, suited to investors holding for months or years. Switching timeframe also changes the default data period automatically.</p>
@@ -59,10 +59,10 @@ const HELP_SECTIONS = [
     `,
   },
   {
-    id:         'portfolio',
-    icon:       '▣',
-    title:      'Portfolio & Monitoring',
-    badge:      'Monitoring',
+    id: 'portfolio',
+    icon: '▣',
+    title: 'Portfolio & Monitoring',
+    badge: 'Monitoring',
     badgeColor: 'badge-gold',
     html: `
       <p class="help-para help-para-lead">After running an analysis, click <strong>Add to Portfolio</strong> to record a position. You'll be asked for the number of shares, the price you paid, the date of purchase, and optional notes. This data is saved in your browser's localStorage — it persists between sessions on the same device without any account or sync.</p>
@@ -72,10 +72,10 @@ const HELP_SECTIONS = [
     `,
   },
   {
-    id:         'reading',
-    icon:       '📊',
-    title:      'Reading the Charts',
-    badge:      'Charts',
+    id: 'reading',
+    icon: '📊',
+    title: 'Reading the Charts',
+    badge: 'Charts',
     badgeColor: 'badge-hold',
     html: `
       <p class="help-para help-para-lead">The <strong>main price chart</strong> shows the closing price as a blue line. The <strong>red dotted line</strong> is the EMA 200 — the long-term trend anchor. When price is above it, the long-term trend is up; below it, down. The <strong>gold line</strong> is the EMA 25, a short-term trend guide. The shaded blue bands are <strong>Bollinger Bands</strong> — the upper and lower edges of normal price behaviour. Buy signals appear as <strong>▲ green triangles</strong> and sell signals as <strong>▽ red triangles</strong> directly on the price line. Brighter triangles indicate stronger signal conviction from the optimiser.</p>
@@ -89,7 +89,7 @@ const HELP_SECTIONS = [
 // ── Help Modal State ──────────────────────────────────────────────
 
 let helpState = {
-  isOpen:        false,
+  isOpen: false,
   activeSection: 0,
 };
 
@@ -100,7 +100,7 @@ function openHelp(sectionId) {
     ? HELP_SECTIONS.findIndex(s => s.id === sectionId)
     : 0;
 
-  helpState.isOpen        = true;
+  helpState.isOpen = true;
   helpState.activeSection = Math.max(0, idx);
 
   document.getElementById('helpModal').classList.add('open');
@@ -151,12 +151,12 @@ function showHelpSection(idx) {
   document.getElementById('helpSectionTitle').textContent = section.title;
   const badge = document.getElementById('helpSectionBadge');
   badge.textContent = section.badge;
-  badge.className   = `badge ${section.badgeColor}`;
+  badge.className = `badge ${section.badgeColor}`;
 
   const content = document.getElementById('helpContent');
   content.style.opacity = '0';
   setTimeout(() => {
-    content.innerHTML     = section.html;
+    content.innerHTML = section.html;
     content.style.opacity = '1';
   }, 80);
 }
@@ -166,10 +166,10 @@ function showHelpSection(idx) {
 function openContextHelp() {
   const viewMap = {
     dashboard: 'overview',
-    analysis:  'analysis',
+    analysis: 'analysis',
     portfolio: 'portfolio',
     watchlist: 'portfolio',
-    settings:  'overview',
+    settings: 'overview',
   };
   openHelp(viewMap[window.state?.currentView] || 'overview');
 }

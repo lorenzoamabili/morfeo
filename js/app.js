@@ -1,22 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-// MERIDIAN v3 — app.js
+// MORFEO v3 — app.js
 // UI controller, view routing, event handling
 // ═══════════════════════════════════════════════════════════════
 
 // ── App state ────────────────────────────────────────────────────
 const state = {
-  currentView:    'analysis',
+  currentView: 'analysis',
   analysisResult: null,   // last analysis data
-  portfolio:      [],
-  watchlist:      [],
-  settings:       null,
+  portfolio: [],
+  watchlist: [],
+  settings: null,
   portfolioCache: {},     // symbol → { data, ind, net, result }
 };
 
 // ── Init ─────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  state.settings  = loadSettings();
+  state.settings = loadSettings();
   state.portfolio = loadPortfolio();
   state.watchlist = loadWatchlist();
 
@@ -56,18 +56,18 @@ function switchView(name) {
     el.classList.toggle('active', el.dataset.view === name);
   });
   const titles = {
-    dashboard:  'Dashboard',
-    analysis:   'Signal Analysis',
-    portfolio:  'Portfolio',
-    watchlist:  'Watchlist',
-    settings:   'Settings',
+    dashboard: 'Dashboard',
+    analysis: 'Signal Analysis',
+    portfolio: 'Portfolio',
+    watchlist: 'Watchlist',
+    settings: 'Settings',
   };
-  document.getElementById('topbarTitle').textContent = titles[name] || 'Meridian';
+  document.getElementById('topbarTitle').textContent = titles[name] || 'Morfeo';
 
   // Refresh views on switch
-  if (name === 'dashboard')  renderDashboard();
-  if (name === 'portfolio')  renderPortfolioView();
-  if (name === 'watchlist')  renderWatchlistView();
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'portfolio') renderPortfolioView();
+  if (name === 'watchlist') renderWatchlistView();
 }
 
 // ── Clock ─────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ function initAnalysisView() {
   const s = state.settings;
 
   // Populate defaults
-  document.getElementById('aMonths').value     = s.defaultPeriod;
+  document.getElementById('aMonths').value = s.defaultPeriod;
   document.getElementById('aRiskSlider').value = s.defaultRisk;
   updateRiskLabel(s.defaultRisk);
 
@@ -105,7 +105,7 @@ function initAnalysisView() {
   });
   // Set correct default (fall back to 'swing' if not found)
   const defaultBtn = document.querySelector(`#tfSegment [data-tf="${s.defaultTimeframe}"]`)
-                  || document.querySelector('#tfSegment [data-tf="swing"]');
+    || document.querySelector('#tfSegment [data-tf="swing"]');
   if (defaultBtn) defaultBtn.classList.add('active');
 
   // Risk slider
@@ -118,10 +118,103 @@ function initAnalysisView() {
   const buyInput = document.getElementById('aBuyDate');
   if (buyInput) { buyInput.value = today; buyInput.max = today; }
 
-  // Enter key
-  document.getElementById('aSymbol')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') runAnalysis();
+  // Enter key + ticker autocomplete
+  setupTickerAutocomplete();
+}
+
+// ── Ticker autocomplete ───────────────────────────────────────────
+
+function setupTickerAutocomplete() {
+  const input = document.getElementById('aSymbol');
+  const dropdown = document.getElementById('aSymbolDropdown');
+  if (!input || !dropdown) return;
+
+  let debounceTimer = null;
+  let activeIdx = -1;
+
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.ticker-item');
+    if (e.key === 'Enter') {
+      if (activeIdx >= 0 && items[activeIdx]) {
+        items[activeIdx].click();
+      } else {
+        hideTickerDropdown();
+        runAnalysis();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('ticker-item-active', i === activeIdx));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, -1);
+      items.forEach((el, i) => el.classList.toggle('ticker-item-active', i === activeIdx));
+      return;
+    }
+    if (e.key === 'Escape') { hideTickerDropdown(); return; }
   });
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(debounceTimer);
+    activeIdx = -1;
+    if (q.length < 2) { hideTickerDropdown(); return; }
+    debounceTimer = setTimeout(() => fetchTickerSuggestions(q), 380);
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(hideTickerDropdown, 200);
+  });
+}
+
+async function fetchTickerSuggestions(query) {
+  const dropdown = document.getElementById('aSymbolDropdown');
+  if (!dropdown) return;
+  dropdown.innerHTML = '<div class="ticker-searching">Searching…</div>';
+  dropdown.style.display = 'block';
+  try {
+    const results = await searchYahooTickers(query);
+    renderTickerDropdown(results);
+  } catch (e) {
+    hideTickerDropdown();
+  }
+}
+
+function renderTickerDropdown(results) {
+  const dropdown = document.getElementById('aSymbolDropdown');
+  if (!dropdown) return;
+  if (!results.length) {
+    dropdown.innerHTML = '<div class="ticker-searching">No results found</div>';
+    return;
+  }
+  const typeLabel = { EQUITY: 'Stock', ETF: 'ETF', MUTUALFUND: 'Fund', CRYPTOCURRENCY: 'Crypto', INDEX: 'Index', FUTURE: 'Future' };
+  dropdown.innerHTML = results.map(r => {
+    const name = r.shortname || r.longname || '';
+    const exch = r.exchange || '';
+    const type = typeLabel[r.quoteType] || r.quoteType || '';
+    return `
+      <div class="ticker-item" onclick="selectTicker('${r.symbol}')">
+        <span class="ticker-item-symbol">${r.symbol}</span>
+        <span class="ticker-item-name">${name}</span>
+        <span class="ticker-item-meta">${[exch, type].filter(Boolean).join(' · ')}</span>
+      </div>`;
+  }).join('');
+  dropdown.style.display = 'block';
+}
+
+function selectTicker(symbol) {
+  const input = document.getElementById('aSymbol');
+  if (input) input.value = symbol;
+  hideTickerDropdown();
+}
+
+function hideTickerDropdown() {
+  const dropdown = document.getElementById('aSymbolDropdown');
+  if (dropdown) dropdown.style.display = 'none';
 }
 
 function updateRiskLabel(val) {
@@ -141,11 +234,11 @@ function getActiveTimeframe() {
 }
 
 async function runAnalysis() {
-  const symbol  = document.getElementById('aSymbol').value.trim().toUpperCase();
-  const months  = parseInt(document.getElementById('aMonths').value) || 6;
+  const symbol = document.getElementById('aSymbol').value.trim().toUpperCase();
+  const months = parseInt(document.getElementById('aMonths').value) || 6;
   const rawDate = document.getElementById('aBuyDate').value;
   const riskVal = parseInt(document.getElementById('aRiskSlider').value);
-  const tf      = getActiveTimeframe();
+  const tf = getActiveTimeframe();
   const riskLvl = riskVal / 100;
 
   // Weekend check
@@ -169,10 +262,10 @@ async function runAnalysis() {
 
   try {
     // ── Fetch data ──
-    const now      = Math.floor(Date.now() / 1000);
-    const startDt  = new Date();
+    const now = Math.floor(Date.now() / 1000);
+    const startDt = new Date();
     startDt.setMonth(startDt.getMonth() - months);
-    const period1  = Math.floor(startDt.getTime() / 1000);
+    const period1 = Math.floor(startDt.getTime() / 1000);
     const interval = timeframeInterval(tf);
 
     const data = await fetchYahooOHLCV(symbol, period1, now, interval);
@@ -183,12 +276,12 @@ async function runAnalysis() {
 
     // ── Indicators ──
     const config = timeframeConfig(tf);
-    const ind    = buildIndicators(data, config);
+    const ind = buildIndicators(data, config);
     setStep('aLoading', 3);
 
     // ── Optimise ──
     const buyDayIdx = buyDate ? (data.dates.findIndex(d => d >= buyDate) ?? -1) : -1;
-    const slPct  = suggestStopLoss(data.close, ind.atr, riskLvl) / 100;
+    const slPct = suggestStopLoss(data.close, ind.atr, riskLvl) / 100;
     const posSzPct = suggestPositionSize(riskLvl) / 100;
 
     const { bestWeights, bestSignal, bestProfit } = await optimise(data.close, ind, {
@@ -209,10 +302,10 @@ async function runAnalysis() {
       initialBalance: state.settings.initialBalance,
     });
 
-    const bah     = buyAndHold(data.close, state.settings.initialBalance);
+    const bah = buyAndHold(data.close, state.settings.initialBalance);
     const lastRSI = ind.rsi.filter(v => v != null).pop();
-    const signal  = currentSignal(bestSignal, lastRSI, riskLvl);
-    const funds   = await fundsPromise;
+    const signal = currentSignal(bestSignal, lastRSI, riskLvl);
+    const funds = await fundsPromise;
 
     // Cache for later portfolio use
     state.analysisResult = { data, ind, net: bestSignal, result, bah, signal, funds, riskLvl, tf, bestWeights, symbol };
@@ -223,7 +316,7 @@ async function runAnalysis() {
     // ── Render results ──
     renderAnalysisResults(state.analysisResult, buyDate);
 
-  } catch(err) {
+  } catch (err) {
     setLoadingSteps('aLoading', false);
     showAlert('aAlert', 'error', err.message || 'Analysis failed.');
   } finally {
@@ -238,50 +331,50 @@ function renderAnalysisResults(r, buyDate) {
   resEl.style.display = 'block';
 
   // Header
-  document.getElementById('aResTicker').textContent  = symbol;
-  document.getElementById('aResName').textContent    = data.name !== symbol ? data.name : '';
+  document.getElementById('aResTicker').textContent = symbol;
+  document.getElementById('aResName').textContent = data.name !== symbol ? data.name : '';
   document.getElementById('aResExchange').textContent = data.exchange;
 
   // Signal badge
   const sigEl = document.getElementById('aResSignal');
-  sigEl.textContent  = signal;
-  sigEl.className    = 'badge ' + signalBadgeClass(signal);
+  sigEl.textContent = signal;
+  sigEl.className = 'badge ' + signalBadgeClass(signal);
 
   // Stats
   const profitEl = document.getElementById('aResProfit');
   profitEl.textContent = fmtPct(result.profitPct);
-  profitEl.className   = 'stat-value ' + (result.profitPct >= 0 ? 'pos' : 'neg');
+  profitEl.className = 'stat-value ' + (result.profitPct >= 0 ? 'pos' : 'neg');
 
-  document.getElementById('aResBah').textContent      = fmtPct(bah);
-  document.getElementById('aResWinRate').textContent  = result.numTrades ? `${result.winRate}%` : '—';
+  document.getElementById('aResBah').textContent = fmtPct(bah);
+  document.getElementById('aResWinRate').textContent = result.numTrades ? `${result.winRate}%` : '—';
   document.getElementById('aResWinRate2').textContent = result.numTrades ? `${result.winRate}%` : '—';
   document.getElementById('aResDrawdown').textContent = result.maxDrawdownPct > 0 ? `-${result.maxDrawdownPct}%` : '—';
-  document.getElementById('aResTrades').textContent   = result.numTrades;
+  document.getElementById('aResTrades').textContent = result.numTrades;
 
   const lastPrice = data.close[data.close.length - 1];
   document.getElementById('aResPrice').textContent = `${data.currency} ${lastPrice.toFixed(2)}`;
 
-  const atrLast = ind.atr.filter(v=>v!=null).pop();
-  const slSugg  = suggestStopLoss(data.close, ind.atr, riskLvl);
+  const atrLast = ind.atr.filter(v => v != null).pop();
+  const slSugg = suggestStopLoss(data.close, ind.atr, riskLvl);
   const posSugg = suggestPositionSize(riskLvl);
-  document.getElementById('aResStopLoss').textContent  = `${slSugg}%  (${(lastPrice * slSugg/100).toFixed(2)})`;
-  document.getElementById('aResPosSize').textContent   = `${posSugg}% of balance`;
+  document.getElementById('aResStopLoss').textContent = `${slSugg}%  (${(lastPrice * slSugg / 100).toFixed(2)})`;
+  document.getElementById('aResPosSize').textContent = `${posSugg}% of balance`;
 
-  const lastVol = ind.vol.filter(v=>v!=null).pop();
+  const lastVol = ind.vol.filter(v => v != null).pop();
   document.getElementById('aResVol').textContent = lastVol ? `${lastVol.toFixed(1)}%` : '—';
-  document.getElementById('aResATR').textContent = atrLast ? `${atrLast.toFixed(2)} (${(atrLast/lastPrice*100).toFixed(1)}%)` : '—';
+  document.getElementById('aResATR').textContent = atrLast ? `${atrLast.toFixed(2)} (${(atrLast / lastPrice * 100).toFixed(1)}%)` : '—';
 
   // Fundamentals
   if (funds) {
-    document.getElementById('aFundPE').textContent        = funds.pe;
-    document.getElementById('aFundFwdPE').textContent     = funds.forwardPE;
-    document.getElementById('aFundEPS').textContent       = funds.eps;
-    document.getElementById('aFundMktCap').textContent    = funds.marketCap;
-    document.getElementById('aFundBeta').textContent      = funds.beta;
-    document.getElementById('aFundDivYield').textContent  = funds.dividendYield;
-    document.getElementById('aFund52H').textContent       = funds.fiftyTwoHigh;
-    document.getElementById('aFund52L').textContent       = funds.fiftyTwoLow;
-    document.getElementById('aFundAvgVol').textContent    = funds.avgVolume;
+    document.getElementById('aFundPE').textContent = funds.pe;
+    document.getElementById('aFundFwdPE').textContent = funds.forwardPE;
+    document.getElementById('aFundEPS').textContent = funds.eps;
+    document.getElementById('aFundMktCap').textContent = funds.marketCap;
+    document.getElementById('aFundBeta').textContent = funds.beta;
+    document.getElementById('aFundDivYield').textContent = funds.dividendYield;
+    document.getElementById('aFund52H').textContent = funds.fiftyTwoHigh;
+    document.getElementById('aFund52L').textContent = funds.fiftyTwoLow;
+    document.getElementById('aFundAvgVol').textContent = funds.avgVolume;
     document.getElementById('aFundamentals').style.display = 'block';
   } else {
     document.getElementById('aFundamentals').style.display = 'none';
@@ -297,8 +390,8 @@ function renderAnalysisResults(r, buyDate) {
   renderVolatilityChart('aChartVol', data.dates, ind.vol, ind.atr, data.close);
 
   // Add to portfolio / watchlist buttons
-  document.getElementById('aBtnAddPortfolio').onclick  = () => openAddPositionModal(r);
-  document.getElementById('aBtnAddWatchlist').onclick  = () => {
+  document.getElementById('aBtnAddPortfolio').onclick = () => openAddPositionModal(r);
+  document.getElementById('aBtnAddWatchlist').onclick = () => {
     addToWatchlist(symbol, data.name);
     state.watchlist = loadWatchlist();
     showToast(`${symbol} added to watchlist`);
@@ -315,13 +408,13 @@ function renderWeightBars(containerId, weights) {
 
   const maxAbs = Math.max(...Object.values(weights).map(Math.abs));
   container.innerHTML = Object.entries(weights).map(([k, v]) => {
-    const pct  = maxAbs > 0 ? Math.abs(v) / maxAbs * 100 : 0;
+    const pct = maxAbs > 0 ? Math.abs(v) / maxAbs * 100 : 0;
     const sign = v >= 0 ? '+' : '';
     return `
       <div class="weight-row">
         <div class="weight-name">${labels[k] || k}</div>
         <div class="weight-bar-bg"><div class="weight-bar-fill" style="width:${pct}%"></div></div>
-        <div class="weight-pct">${sign}${(v*100).toFixed(0)}%</div>
+        <div class="weight-pct">${sign}${(v * 100).toFixed(0)}%</div>
       </div>`;
   }).join('');
 }
@@ -331,17 +424,17 @@ function renderWeightBars(containerId, weights) {
 function openAddPositionModal(r) {
   const { data, signal, riskLvl, tf } = r;
   const lastPrice = data.close[data.close.length - 1];
-  document.getElementById('modalSymbol').textContent   = data.symbol;
-  document.getElementById('modalPrice').value          = lastPrice.toFixed(2);
-  document.getElementById('modalDate').value           = new Date().toISOString().split('T')[0];
-  document.getElementById('modalShares').value         = '';
-  document.getElementById('modalRisk').value           = Math.round(riskLvl * 100);
-  document.getElementById('modalTf').value             = tf;
-  document.getElementById('modalNotes').value          = '';
+  document.getElementById('modalSymbol').textContent = data.symbol;
+  document.getElementById('modalPrice').value = lastPrice.toFixed(2);
+  document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('modalShares').value = '';
+  document.getElementById('modalRisk').value = Math.round(riskLvl * 100);
+  document.getElementById('modalTf').value = tf;
+  document.getElementById('modalNotes').value = '';
 
   // Show cost estimate on share change
   const sharesEl = document.getElementById('modalShares');
-  const costEl   = document.getElementById('modalCost');
+  const costEl = document.getElementById('modalCost');
   sharesEl.oninput = () => {
     const cost = parseFloat(sharesEl.value) * lastPrice;
     costEl.textContent = isNaN(cost) ? '' : `Cost: ${fmtCurrency(cost, data.currency)}`;
@@ -355,13 +448,13 @@ function closeModal() {
 }
 
 function savePosition() {
-  const symbol    = document.getElementById('modalSymbol').textContent;
-  const shares    = parseFloat(document.getElementById('modalShares').value);
-  const buyPrice  = parseFloat(document.getElementById('modalPrice').value);
-  const buyDate   = document.getElementById('modalDate').value;
+  const symbol = document.getElementById('modalSymbol').textContent;
+  const shares = parseFloat(document.getElementById('modalShares').value);
+  const buyPrice = parseFloat(document.getElementById('modalPrice').value);
+  const buyDate = document.getElementById('modalDate').value;
   const riskLevel = parseInt(document.getElementById('modalRisk').value);
-  const tf        = document.getElementById('modalTf').value;
-  const notes     = document.getElementById('modalNotes').value;
+  const tf = document.getElementById('modalTf').value;
+  const notes = document.getElementById('modalNotes').value;
 
   if (!shares || shares <= 0 || !buyPrice || buyPrice <= 0) {
     showToast('Please enter valid shares and price.', 'error');
@@ -369,7 +462,7 @@ function savePosition() {
   }
 
   const cached = state.portfolioCache[symbol] || null;
-  const name   = cached?.data?.name || symbol;
+  const name = cached?.data?.name || symbol;
 
   upsertPosition({ symbol, name, shares, buyPrice, buyDate, notes, timeframe: tf, riskLevel });
   state.portfolio = loadPortfolio();
@@ -379,7 +472,7 @@ function savePosition() {
     const lastPrice = cached.data.close[cached.data.close.length - 1];
     updatePositionLiveData(symbol, {
       currentPrice: lastPrice,
-      lastSignal:   cached.signal,
+      lastSignal: cached.signal,
       fundamentals: cached.funds,
     });
     state.portfolio = loadPortfolio();
@@ -402,13 +495,13 @@ function renderDashboard() {
   const summary = portfolioSummary(state.portfolio);
   const currency = state.settings?.currency || 'USD';
 
-  document.getElementById('dTotalValue').textContent   = fmtCurrency(summary.totalValue || 0, currency);
-  document.getElementById('dTotalPnL').textContent     = fmtPct(summary.totalPnLPct);
-  document.getElementById('dTotalPnL').className       = 'stat-value ' + (summary.totalPnLPct >= 0 ? 'pos' : 'neg');
-  document.getElementById('dPositions').textContent    = summary.positions;
-  document.getElementById('dBuys').textContent         = summary.buys;
-  document.getElementById('dSells').textContent        = summary.sells;
-  document.getElementById('dWatchlist').textContent    = state.watchlist.length;
+  document.getElementById('dTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
+  document.getElementById('dTotalPnL').textContent = fmtPct(summary.totalPnLPct);
+  document.getElementById('dTotalPnL').className = 'stat-value ' + (summary.totalPnLPct >= 0 ? 'pos' : 'neg');
+  document.getElementById('dPositions').textContent = summary.positions;
+  document.getElementById('dBuys').textContent = summary.buys;
+  document.getElementById('dSells').textContent = summary.sells;
+  document.getElementById('dWatchlist').textContent = state.watchlist.length;
 
   // Recent signals
   const signalEl = document.getElementById('dSignalList');
@@ -458,15 +551,15 @@ function renderDashboard() {
 
 function renderPortfolioView() {
   state.portfolio = loadPortfolio();
-  const summary   = portfolioSummary(state.portfolio);
-  const currency  = state.settings?.currency || 'USD';
+  const summary = portfolioSummary(state.portfolio);
+  const currency = state.settings?.currency || 'USD';
 
-  document.getElementById('pTotalValue').textContent     = fmtCurrency(summary.totalValue || 0, currency);
-  document.getElementById('pTotalPnL').textContent       = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL);
-  document.getElementById('pTotalPnL').className         = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
+  document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
+  document.getElementById('pTotalPnL').textContent = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL);
+  document.getElementById('pTotalPnL').className = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
   const pnlPctEl = document.getElementById('pTotalPnLPct');
   if (pnlPctEl) pnlPctEl.textContent = fmtPct(summary.totalPnLPct);
-  document.getElementById('pPositionCount').textContent  = summary.positions;
+  document.getElementById('pPositionCount').textContent = summary.positions;
 
   const grid = document.getElementById('pPositionGrid');
   if (state.portfolio.length === 0) {
@@ -486,7 +579,7 @@ function renderPortfolioView() {
   if (withData.length >= 2) {
     const portData = withData.map(p => ({
       symbol: p.symbol,
-      close:  state.portfolioCache[p.symbol].data.close,
+      close: state.portfolioCache[p.symbol].data.close,
     }));
     const matrix = correlationMatrix(portData);
     document.getElementById('pCorrelation').style.display = 'block';
@@ -498,7 +591,7 @@ function renderPortfolioView() {
 
 function renderPositionCard(p) {
   const { pnl, pnlPct } = positionPnL(p);
-  const cost  = p.shares * p.buyPrice;
+  const cost = p.shares * p.buyPrice;
   const value = p.currentPrice ? p.shares * p.currentPrice : null;
 
   return `
@@ -563,11 +656,11 @@ async function refreshPosition(symbol) {
   if (!pos) return;
 
   try {
-    const now    = Math.floor(Date.now() / 1000);
-    const start  = Math.floor(Date.now() / 1000) - 60 * 24 * 3600;
-    const data   = await fetchYahooOHLCV(symbol, start, now, '1d');
+    const now = Math.floor(Date.now() / 1000);
+    const start = Math.floor(Date.now() / 1000) - 60 * 24 * 3600;
+    const data = await fetchYahooOHLCV(symbol, start, now, '1d');
     const config = timeframeConfig(pos.timeframe || 'swing');
-    const ind    = buildIndicators(data, config);
+    const ind = buildIndicators(data, config);
     const riskLvl = (pos.riskLevel || 50) / 100;
 
     const { bestWeights, bestSignal } = await optimise(data.close, ind, {
@@ -575,10 +668,10 @@ async function refreshPosition(symbol) {
       riskLevel: riskLvl,
     });
 
-    const lastRSI  = ind.rsi.filter(v => v != null).pop();
-    const signal   = currentSignal(bestSignal, lastRSI, riskLvl);
+    const lastRSI = ind.rsi.filter(v => v != null).pop();
+    const signal = currentSignal(bestSignal, lastRSI, riskLvl);
     const lastPrice = data.close[data.close.length - 1];
-    const funds    = await fetchFundamentals(symbol);
+    const funds = await fetchFundamentals(symbol);
 
     state.portfolioCache[symbol] = { data, ind, net: bestSignal, signal, funds, riskLvl };
 
@@ -587,7 +680,7 @@ async function refreshPosition(symbol) {
     renderPortfolioView();
     renderDashboard();
     showToast(`${symbol} updated — signal: ${signal}`);
-  } catch(e) {
+  } catch (e) {
     showToast(`Failed to refresh ${symbol}: ${e.message}`, 'error');
   }
 }
@@ -677,24 +770,24 @@ async function refreshWatchlist() {
   if (btn) btn.disabled = true;
   for (const w of state.watchlist) {
     try {
-      const now   = Math.floor(Date.now() / 1000);
+      const now = Math.floor(Date.now() / 1000);
       const start = now - 30 * 24 * 3600;
-      const data  = await fetchYahooOHLCV(w.symbol, start, now, '1d');
-      const ind   = buildIndicators(data);
+      const data = await fetchYahooOHLCV(w.symbol, start, now, '1d');
+      const ind = buildIndicators(data);
       const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
-      const lastRSI = ind.rsi.filter(v=>v!=null).pop();
-      const signal  = currentSignal(bestSignal, lastRSI, 0.5);
-      const list    = loadWatchlist();
-      const idx     = list.findIndex(l => l.symbol === w.symbol);
+      const lastRSI = ind.rsi.filter(v => v != null).pop();
+      const signal = currentSignal(bestSignal, lastRSI, 0.5);
+      const list = loadWatchlist();
+      const idx = list.findIndex(l => l.symbol === w.symbol);
       if (idx >= 0) {
         list[idx].currentPrice = data.close[data.close.length - 1];
-        list[idx].lastSignal   = signal;
-        list[idx].name         = data.name;
-        list[idx].lastUpdated  = Date.now();
+        list[idx].lastSignal = signal;
+        list[idx].name = data.name;
+        list[idx].lastUpdated = Date.now();
         saveWatchlist(list);
       }
       await new Promise(r => setTimeout(r, 400));
-    } catch(e) { /* skip failed tickers */ }
+    } catch (e) { /* skip failed tickers */ }
   }
   state.watchlist = loadWatchlist();
   renderWatchlistView();
@@ -708,19 +801,19 @@ async function refreshWatchlist() {
 
 function renderSettingsView() {
   const s = state.settings;
-  document.getElementById('sDefaultRisk').value        = s.defaultRisk;
-  document.getElementById('sDefaultTf').value          = s.defaultTimeframe;
-  document.getElementById('sDefaultPeriod').value      = s.defaultPeriod;
-  document.getElementById('sInitialBalance').value     = s.initialBalance;
+  document.getElementById('sDefaultRisk').value = s.defaultRisk;
+  document.getElementById('sDefaultTf').value = s.defaultTimeframe;
+  document.getElementById('sDefaultPeriod').value = s.defaultPeriod;
+  document.getElementById('sInitialBalance').value = s.initialBalance;
 }
 
 function saveSettingsForm() {
   const s = {
-    defaultRisk:      parseInt(document.getElementById('sDefaultRisk').value),
+    defaultRisk: parseInt(document.getElementById('sDefaultRisk').value),
     defaultTimeframe: document.getElementById('sDefaultTf').value,
-    defaultPeriod:    parseInt(document.getElementById('sDefaultPeriod').value),
-    initialBalance:   parseFloat(document.getElementById('sInitialBalance').value),
-    currency:         state.settings.currency,
+    defaultPeriod: parseInt(document.getElementById('sDefaultPeriod').value),
+    initialBalance: parseFloat(document.getElementById('sInitialBalance').value),
+    currency: state.settings.currency,
   };
   saveSettings(s);
   state.settings = s;
@@ -735,7 +828,7 @@ function clearAllData() {
   localStorage.removeItem(SETTINGS_KEY);
   state.portfolio = [];
   state.watchlist = [];
-  state.settings  = loadSettings();
+  state.settings = loadSettings();
   state.portfolioCache = {};
   renderDashboard();
   renderPortfolioView();
@@ -812,10 +905,10 @@ function updateWatchlistBadge() {
 
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60)   return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-  if (diff < 86400)return `${Math.floor(diff/3600)}h ago`;
-  return `${Math.floor(diff/86400)}d ago`;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 // Export CSV
@@ -823,8 +916,8 @@ function exportPortfolioCSV() {
   const portfolio = loadPortfolio();
   if (!portfolio.length) { showToast('Portfolio is empty', 'error'); return; }
 
-  const headers = ['Symbol','Name','Shares','Buy Price','Buy Date','Current Price','P&L%','Signal','Timeframe','Risk Level'];
-  const rows    = portfolio.map(p => {
+  const headers = ['Symbol', 'Name', 'Shares', 'Buy Price', 'Buy Date', 'Current Price', 'P&L%', 'Signal', 'Timeframe', 'Risk Level'];
+  const rows = portfolio.map(p => {
     const { pnlPct } = positionPnL(p);
     return [
       p.symbol, p.name, p.shares, p.buyPrice, p.buyDate,
@@ -835,9 +928,9 @@ function exportPortfolioCSV() {
 
   const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
-  a.download = `meridian-portfolio-${new Date().toISOString().split('T')[0]}.csv`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `morfeo-portfolio-${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   showToast('Portfolio exported');
 }

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// MERIDIAN v3 — optimiser.js
+// MORFEO v3 — optimiser.js
 // Signal construction, genetic optimiser, backtester
 // ═══════════════════════════════════════════════════════════════
 
@@ -19,10 +19,10 @@ function buildNetSignal(ind, weights) {
 
   const raw = new Array(n);
   for (let i = 0; i < n; i++) {
-    const tBuy  = trendW * (ind.e200Buy[i]  + ind.e100Buy[i]  + ind.e50Buy[i]  + ind.e25Buy[i]);
+    const tBuy = trendW * (ind.e200Buy[i] + ind.e100Buy[i] + ind.e50Buy[i] + ind.e25Buy[i]);
     const tSell = trendW * (ind.e200Sell[i] + ind.e100Sell[i] + ind.e50Sell[i] + ind.e25Sell[i]);
-    const buy   = rsiW * ind.rsiBuy[i]  + tBuy  + macdW * ind.macdBuy[i]  + bollW * ind.bollBuy[i]  + ichiW * ind.ichiBuy[i];
-    const sell  = rsiW * ind.rsiSell[i] + tSell + macdW * ind.macdSell[i] + bollW * ind.bollSell[i] + ichiW * ind.ichiSell[i];
+    const buy = rsiW * ind.rsiBuy[i] + tBuy + macdW * ind.macdBuy[i] + bollW * ind.bollBuy[i] + ichiW * ind.ichiBuy[i];
+    const sell = rsiW * ind.rsiSell[i] + tSell + macdW * ind.macdSell[i] + bollW * ind.bollSell[i] + ichiW * ind.ichiSell[i];
     raw[i] = buy - sell;
   }
   return transformSignal(raw);
@@ -32,7 +32,7 @@ function buildNetSignal(ind, weights) {
 function transformSignal(arr) {
   return arr.map((v, i) => {
     if (i === 0) return 0;
-    const prev = arr[i-1];
+    const prev = arr[i - 1];
     return (v * prev <= 0 && prev !== 0) ? v : 0;
   });
 }
@@ -45,63 +45,63 @@ function transformSignal(arr) {
 function backtest(close, signal, options = {}) {
   const {
     initialBalance = 300,
-    riskLevel      = 0.5,   // 0–1
-    stopLossPct    = null,   // e.g. 0.05 = 5% stop loss
-    takeProfitPct  = null,
-    positionSizePct= null,   // fraction of balance per trade (null = all-in)
+    riskLevel = 0.5,   // 0–1
+    stopLossPct = null,   // e.g. 0.05 = 5% stop loss
+    takeProfitPct = null,
+    positionSizePct = null,   // fraction of balance per trade (null = all-in)
   } = options;
 
   // Signal threshold: aggressive acts on anything > 0, conservative needs stronger signal
   const threshold = (1 - riskLevel) * 0.3; // 0 to 0.3 range
 
-  let balance     = Math.max(initialBalance, close[0]);
-  let position    = 0;
-  let buyPrice    = 0;
-  let lastAction  = null;
-  let trades      = [];
-  let tradeOpen   = null;
+  let balance = Math.max(initialBalance, close[0]);
+  let position = 0;
+  let buyPrice = 0;
+  let lastAction = null;
+  let trades = [];
+  let tradeOpen = null;
 
-  const maxBal    = balance;
-  let   peakBal   = balance;
-  let   maxDrawdown = 0;
+  const maxBal = balance;
+  let peakBal = balance;
+  let maxDrawdown = 0;
 
   for (let i = 0; i < close.length; i++) {
     const price = close[i];
-    const sig   = signal[i];
+    const sig = signal[i];
 
     // Check stop loss / take profit on open position
     if (position > 0) {
       const chg = (price - buyPrice) / buyPrice;
-      if (stopLossPct  != null && chg <= -stopLossPct) {
+      if (stopLossPct != null && chg <= -stopLossPct) {
         balance += position * price - 3;
-        trades.push({ type:'sell', reason:'stop-loss', entry:buyPrice, exit:price, gain:chg*100, i });
+        trades.push({ type: 'sell', reason: 'stop-loss', entry: buyPrice, exit: price, gain: chg * 100, i });
         position = 0; lastAction = 'sell'; tradeOpen = null;
       } else if (takeProfitPct != null && chg >= takeProfitPct) {
         balance += position * price - 3;
-        trades.push({ type:'sell', reason:'take-profit', entry:buyPrice, exit:price, gain:chg*100, i });
+        trades.push({ type: 'sell', reason: 'take-profit', entry: buyPrice, exit: price, gain: chg * 100, i });
         position = 0; lastAction = 'sell'; tradeOpen = null;
       }
     }
 
     // Buy signal
     if (sig > threshold && position === 0 && lastAction !== 'buy') {
-      const allocPct  = positionSizePct ? positionSizePct : 1.0;
+      const allocPct = positionSizePct ? positionSizePct : 1.0;
       const allocated = balance * allocPct;
-      position   = Math.floor(allocated / price);
+      position = Math.floor(allocated / price);
       if (position < 1) continue;
-      buyPrice   = price;
-      balance   -= position * price + 3;
+      buyPrice = price;
+      balance -= position * price + 3;
       lastAction = 'buy';
-      tradeOpen  = { entry: price, i };
+      tradeOpen = { entry: price, i };
     }
     // Sell signal
     else if (sig < -threshold && position > 0 && lastAction !== 'sell') {
       const gain = ((price - buyPrice) / buyPrice) * 100;
-      balance   += position * price - 3;
-      trades.push({ type:'sell', reason:'signal', entry:buyPrice, exit:price, gain, i });
-      position   = 0;
+      balance += position * price - 3;
+      trades.push({ type: 'sell', reason: 'signal', entry: buyPrice, exit: price, gain, i });
+      position = 0;
       lastAction = 'sell';
-      tradeOpen  = null;
+      tradeOpen = null;
     }
 
     // Drawdown tracking
@@ -111,19 +111,19 @@ function backtest(close, signal, options = {}) {
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  const finalPrice  = close[close.length - 1];
-  const finalVal    = balance + position * finalPrice;
-  const profitPct   = Math.round(((finalVal - initialBalance) / initialBalance) * 10000) / 100;
-  const winRate     = trades.length ? trades.filter(t => t.gain > 0).length / trades.length : 0;
-  const avgGain     = trades.length ? trades.reduce((s,t)=>s+t.gain,0) / trades.length : 0;
+  const finalPrice = close[close.length - 1];
+  const finalVal = balance + position * finalPrice;
+  const profitPct = Math.round(((finalVal - initialBalance) / initialBalance) * 10000) / 100;
+  const winRate = trades.length ? trades.filter(t => t.gain > 0).length / trades.length : 0;
+  const avgGain = trades.length ? trades.reduce((s, t) => s + t.gain, 0) / trades.length : 0;
 
   return {
     profitPct,
     finalVal,
     trades,
-    numTrades:   trades.length,
-    winRate:     Math.round(winRate * 100),
-    avgGainPct:  Math.round(avgGain * 100) / 100,
+    numTrades: trades.length,
+    winRate: Math.round(winRate * 100),
+    avgGainPct: Math.round(avgGain * 100) / 100,
     maxDrawdownPct: Math.round(maxDrawdown * 10000) / 100,
     openPosition: position > 0 ? { shares: position, buyPrice, currentPrice: finalPrice } : null,
   };
@@ -132,10 +132,10 @@ function backtest(close, signal, options = {}) {
 // ── Buy-and-hold benchmark ───────────────────────────────────────
 function buyAndHold(close, initialBalance = 300) {
   const startPrice = close[0];
-  const endPrice   = close[close.length - 1];
-  const shares     = Math.floor(Math.max(initialBalance, startPrice) / startPrice);
-  const startVal   = shares * startPrice;
-  const endVal     = shares * endPrice;
+  const endPrice = close[close.length - 1];
+  const shares = Math.floor(Math.max(initialBalance, startPrice) / startPrice);
+  const startVal = shares * startPrice;
+  const endVal = shares * endPrice;
   return Math.round(((endVal - startVal) / startVal) * 10000) / 100;
 }
 
@@ -145,16 +145,16 @@ function buyAndHold(close, initialBalance = 300) {
 
 async function optimise(close, ind, options = {}) {
   const {
-    nTrials    = 400,
-    buyDayIdx  = -1,
-    riskLevel  = 0.5,
+    nTrials = 400,
+    buyDayIdx = -1,
+    riskLevel = 0.5,
     onProgress = null,
     backtestOpts = {},
   } = options;
 
   let bestProfit = -Infinity;
   let bestWeights = null;
-  let bestSignal  = null;
+  let bestSignal = null;
 
   const CHUNK = 60;
 
@@ -163,11 +163,11 @@ async function optimise(close, ind, options = {}) {
 
     for (let t = start; t < Math.min(start + CHUNK, nTrials); t++) {
       const raw = {
-        rsiW:   Math.random() * 2 - 1,
+        rsiW: Math.random() * 2 - 1,
         trendW: Math.random() * 2 - 1,
-        macdW:  Math.random() * 2 - 1,
-        bollW:  Math.random() * 2 - 1,
-        ichiW:  Math.random() * 2 - 1,
+        macdW: Math.random() * 2 - 1,
+        bollW: Math.random() * 2 - 1,
+        ichiW: Math.random() * 2 - 1,
       };
       const w = normaliseWeights(raw);
       let net = buildNetSignal(ind, w);
@@ -182,9 +182,9 @@ async function optimise(close, ind, options = {}) {
 
       const result = backtest(close, net, { riskLevel, ...backtestOpts });
       if (result.profitPct > bestProfit) {
-        bestProfit  = result.profitPct;
+        bestProfit = result.profitPct;
         bestWeights = w;
-        bestSignal  = net;
+        bestSignal = net;
       }
     }
 
@@ -198,17 +198,17 @@ async function optimise(close, ind, options = {}) {
 
 // riskLevel 0-100 → 0-1, returns human label + colour
 function riskProfile(level) {
-  if (level <= 20) return { label: 'Conservative', color: 'var(--green)',  desc: 'Requires strong indicator consensus. Lower signal frequency, tighter thresholds.' };
-  if (level <= 40) return { label: 'Moderate',     color: '#7ec87e',       desc: 'Balanced signal sensitivity. Suitable for regular swing trading.' };
-  if (level <= 60) return { label: 'Balanced',     color: 'var(--gold)',   desc: 'Standard sensitivity. Mirrors default optimised settings.' };
-  if (level <= 80) return { label: 'Aggressive',   color: 'var(--orange)', desc: 'Lower signal threshold. More frequent trades, higher variance.' };
-  return             { label: 'Speculative',        color: 'var(--red)',    desc: 'Acts on minimal signal. Maximum trade frequency, maximum risk.' };
+  if (level <= 20) return { label: 'Conservative', color: 'var(--green)', desc: 'Requires strong indicator consensus. Lower signal frequency, tighter thresholds.' };
+  if (level <= 40) return { label: 'Moderate', color: '#7ec87e', desc: 'Balanced signal sensitivity. Suitable for regular swing trading.' };
+  if (level <= 60) return { label: 'Balanced', color: 'var(--gold)', desc: 'Standard sensitivity. Mirrors default optimised settings.' };
+  if (level <= 80) return { label: 'Aggressive', color: 'var(--orange)', desc: 'Lower signal threshold. More frequent trades, higher variance.' };
+  return { label: 'Speculative', color: 'var(--red)', desc: 'Acts on minimal signal. Maximum trade frequency, maximum risk.' };
 }
 
 // Suggest stop-loss % based on ATR and risk level
 function suggestStopLoss(close, atr, riskLevel) {
   const lastPrice = close[close.length - 1];
-  const lastATR   = atr.filter(v => v != null).pop() || lastPrice * 0.01;
+  const lastATR = atr.filter(v => v != null).pop() || lastPrice * 0.01;
   const multiplier = 1 + (1 - riskLevel) * 2; // conservative = 3×ATR, aggressive = 1×ATR
   const slPct = (lastATR * multiplier / lastPrice) * 100;
   return Math.round(slPct * 10) / 10;
@@ -227,7 +227,7 @@ function correlationMatrix(portfolioData) {
   // portfolioData: array of {symbol, close[]}
   const returns = portfolioData.map(p => {
     const c = p.close;
-    return c.map((v, i) => i === 0 ? null : (v - c[i-1]) / c[i-1]).slice(1);
+    return c.map((v, i) => i === 0 ? null : (v - c[i - 1]) / c[i - 1]).slice(1);
   });
 
   const n = portfolioData.length;
@@ -243,11 +243,11 @@ function correlationMatrix(portfolioData) {
       const ai = a.slice(a.length - len);
       const bi = b.slice(b.length - len);
 
-      const meanA = ai.reduce((s,v)=>s+v,0)/len;
-      const meanB = bi.reduce((s,v)=>s+v,0)/len;
-      const num = ai.reduce((s,v,k) => s + (v-meanA)*(bi[k]-meanB), 0);
-      const denA = Math.sqrt(ai.reduce((s,v)=>s+(v-meanA)**2,0));
-      const denB = Math.sqrt(bi.reduce((s,v)=>s+(v-meanB)**2,0));
+      const meanA = ai.reduce((s, v) => s + v, 0) / len;
+      const meanB = bi.reduce((s, v) => s + v, 0) / len;
+      const num = ai.reduce((s, v, k) => s + (v - meanA) * (bi[k] - meanB), 0);
+      const denA = Math.sqrt(ai.reduce((s, v) => s + (v - meanA) ** 2, 0));
+      const denB = Math.sqrt(bi.reduce((s, v) => s + (v - meanB) ** 2, 0));
       matrix[i][j] = (denA * denB) === 0 ? 0 : Math.round(num / (denA * denB) * 100) / 100;
     }
   }
@@ -260,7 +260,7 @@ function currentSignal(net, rsiLast, riskLevel = 0.5) {
   const lastSig = net[net.length - 1];
   const prevSig = net[net.length - 2];
 
-  if (lastSig > threshold)  return 'BUY';
+  if (lastSig > threshold) return 'BUY';
   if (lastSig < -threshold) return 'SELL';
 
   // Use RSI as tiebreaker for hold context

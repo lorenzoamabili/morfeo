@@ -1,4 +1,4 @@
-# Meridian v3 — Full Investment Platform
+# Morfeo v3 — Full Investment Platform
 
 A fully client-side investment platform. No backend, no API key, no login.
 
@@ -42,7 +42,7 @@ A fully client-side investment platform. No backend, no API key, no login.
 ## File Structure
 
 ```
-meridian-v3/
+morfeo-v3/
 ├── index.html          ← App shell + all view HTML
 ├── netlify.toml        ← Netlify config
 ├── css/
@@ -61,7 +61,7 @@ meridian-v3/
 
 **Option A: Netlify Drop (fastest)**
 1. Go to https://app.netlify.com/drop
-2. Drag & drop the `meridian-v3/` folder
+2. Drag & drop the `morfeo-v3/` folder
 3. Live instantly
 
 **Option B: Git**

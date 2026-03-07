@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Meridian — Investment Platform</title>
+  <title>Morfeo — Investment Platform</title>
+  <link rel="icon" type="image/png" href="morfeo.png"/>
   <link rel="stylesheet" href="css/style.css"/>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
@@ -23,7 +24,7 @@
       <div class="help-header-left">
         <div class="help-logo-mark">?</div>
         <div>
-          <div class="help-modal-title">How Meridian Works</div>
+          <div class="help-modal-title">How Morfeo Works</div>
           <div class="help-modal-sub">AI-powered guide · Click any topic to learn more</div>
         </div>
       </div>
@@ -40,7 +41,7 @@
 
         <div class="help-nav-tip">
           <div class="help-tip-icon">✦</div>
-          <div>Select any topic for a plain-English explanation of how that part of Meridian works.</div>
+          <div>Select any topic for a plain-English explanation of how that part of Morfeo works.</div>
         </div>
       </div>
 
@@ -62,7 +63,7 @@
 
     <!-- Footer -->
     <div class="help-modal-footer">
-      <div class="help-footer-status">✦ Meridian User Guide</div>
+      <div class="help-footer-status">✦ Morfeo User Guide</div>
       <div class="help-footer-nav">
         <button class="btn btn-ghost btn-sm" onclick="showHelpSection(Math.max(0, helpState.activeSection - 1))">← Prev</button>
         <button class="btn btn-ghost btn-sm" onclick="showHelpSection(Math.min(HELP_SECTIONS.length - 1, helpState.activeSection + 1))">Next →</button>
@@ -128,7 +129,7 @@
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-mark">MERIDIAN</div>
+      <div class="logo-mark">MORFEO</div>
       <div class="logo-sub">Investment Platform</div>
     </div>
 
@@ -259,9 +260,10 @@
           </div>
 
           <div class="grid-3 mb-16" style="gap:16px;">
-            <div class="field">
-              <label>Ticker Symbol</label>
-              <input id="aSymbol" type="text" value="AAPL" placeholder="e.g. AAPL, TSLA, BTC-USD"/>
+            <div class="field" style="position:relative;">
+              <label>Ticker Symbol <span style="color:var(--muted); font-weight:300; font-size:10px;">— or search by company name</span></label>
+              <input id="aSymbol" type="text" value="AAPL" placeholder="e.g. AAPL or 'Apple'" autocomplete="off"/>
+              <div id="aSymbolDropdown" class="ticker-dropdown" style="display:none;"></div>
             </div>
             <div class="field">
               <label>Data Period (months)</label>
@@ -560,9 +562,9 @@
           </div>
 
           <div class="card">
-            <div class="card-title">About Meridian</div>
+            <div class="card-title">About Morfeo</div>
             <div style="font-size:12px; color:var(--text2); line-height:1.8;">
-              <p style="margin-bottom:10px;">Meridian is a fully client-side investment analysis platform. All data is fetched live from Yahoo Finance. No backend server, no API key, no login required.</p>
+              <p style="margin-bottom:10px;">Morfeo is a fully client-side investment analysis platform. All data is fetched live from Yahoo Finance. No backend server, no API key, no login required.</p>
               <p style="margin-bottom:10px;">Portfolio and watchlist data is stored in your browser's <code style="font-size:10px; background:var(--surface2); padding:1px 4px; border-radius:2px;">localStorage</code>. Clearing your browser data will erase it.</p>
               <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
                 <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">Indicators Used</div>
@@ -587,7 +589,7 @@
         <div class="card mt-16">
           <div class="card-title">Disclaimer</div>
           <div style="font-size:11px; color:var(--muted); line-height:1.9;">
-            Meridian is for <strong style="color:var(--text2);">informational and educational purposes only</strong>. It does not constitute financial advice. Past performance of backtested strategies does not guarantee future results. Always do your own research and consult a qualified financial advisor before making investment decisions. The optimiser finds historically-best weights over the analysed period — this is in-sample and subject to overfitting.
+            Morfeo is for <strong style="color:var(--text2);">informational and educational purposes only</strong>. It does not constitute financial advice. Past performance of backtested strategies does not guarantee future results. Always do your own research and consult a qualified financial advisor before making investment decisions. The optimiser finds historically-best weights over the analysed period — this is in-sample and subject to overfitting.
           </div>
         </div>
       </div>
