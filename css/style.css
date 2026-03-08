@@ -209,6 +209,33 @@ body::after {
   color: var(--muted);
   letter-spacing: 0.1em;
 }
+/* ── User chip (auth) ── */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+}
+.user-chip-email {
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+.user-chip-logout {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.user-chip-logout:hover { color: var(--red); }
+
 .live-dot {
   width: 6px; height: 6px;
   border-radius: 50%;

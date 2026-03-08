@@ -15,7 +15,9 @@ const state = {
 
 // ── Init ─────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await initAuth();
+
   state.settings = loadSettings();
   state.portfolio = loadPortfolio();
   state.watchlist = loadWatchlist();
@@ -29,6 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
   updatePortfolioBadge();
   updateWatchlistBadge();
   startClock();
+
+  setupWatchlistAutocomplete();
+  setupPortfolioAutocomplete();
 
   // Mobile menu
   document.getElementById('menuToggle')?.addEventListener('click', () => {
@@ -122,24 +127,25 @@ function initAnalysisView() {
   setupTickerAutocomplete();
 }
 
-// ── Ticker autocomplete ───────────────────────────────────────────
+// ── Autocomplete (generic) ────────────────────────────────────────
 
-function setupTickerAutocomplete() {
-  const input = document.getElementById('aSymbol');
-  const dropdown = document.getElementById('aSymbolDropdown');
+function setupAutocomplete(inputId, dropdownId, onEnter) {
+  const input    = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
   if (!input || !dropdown) return;
 
   let debounceTimer = null;
-  let activeIdx = -1;
+  let activeIdx     = -1;
 
   input.addEventListener('keydown', e => {
     const items = dropdown.querySelectorAll('.ticker-item');
     if (e.key === 'Enter') {
       if (activeIdx >= 0 && items[activeIdx]) {
-        items[activeIdx].click();
+        e.preventDefault();
+        items[activeIdx].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       } else {
-        hideTickerDropdown();
-        runAnalysis();
+        _hideDropdown(dropdown);
+        if (onEnter) onEnter();
       }
       return;
     }
@@ -155,38 +161,34 @@ function setupTickerAutocomplete() {
       items.forEach((el, i) => el.classList.toggle('ticker-item-active', i === activeIdx));
       return;
     }
-    if (e.key === 'Escape') { hideTickerDropdown(); return; }
+    if (e.key === 'Escape') { _hideDropdown(dropdown); return; }
   });
 
   input.addEventListener('input', () => {
-    const q = input.value.trim();
+    const lastSeg = input.value.split(',').pop().trim();
     clearTimeout(debounceTimer);
     activeIdx = -1;
-    if (q.length < 2) { hideTickerDropdown(); return; }
-    debounceTimer = setTimeout(() => fetchTickerSuggestions(q), 380);
+    if (lastSeg.length < 2) { _hideDropdown(dropdown); return; }
+    debounceTimer = setTimeout(() => _fetchDropdownSuggestions(lastSeg, input, dropdown), 380);
   });
 
   input.addEventListener('blur', () => {
-    setTimeout(hideTickerDropdown, 200);
+    setTimeout(() => _hideDropdown(dropdown), 200);
   });
 }
 
-async function fetchTickerSuggestions(query) {
-  const dropdown = document.getElementById('aSymbolDropdown');
-  if (!dropdown) return;
+async function _fetchDropdownSuggestions(query, input, dropdown) {
   dropdown.innerHTML = '<div class="ticker-searching">Searching…</div>';
   dropdown.style.display = 'block';
   try {
     const results = await searchYahooTickers(query);
-    renderTickerDropdown(results);
-  } catch (e) {
-    hideTickerDropdown();
+    _renderDropdown(results, input, dropdown);
+  } catch {
+    _hideDropdown(dropdown);
   }
 }
 
-function renderTickerDropdown(results) {
-  const dropdown = document.getElementById('aSymbolDropdown');
-  if (!dropdown) return;
+function _renderDropdown(results, input, dropdown) {
   if (!results.length) {
     dropdown.innerHTML = '<div class="ticker-searching">No results found</div>';
     return;
@@ -197,24 +199,39 @@ function renderTickerDropdown(results) {
     const exch = r.exchange || '';
     const type = typeLabel[r.quoteType] || r.quoteType || '';
     return `
-      <div class="ticker-item" onclick="selectTicker('${r.symbol}')">
+      <div class="ticker-item" data-symbol="${r.symbol}">
         <span class="ticker-item-symbol">${r.symbol}</span>
         <span class="ticker-item-name">${name}</span>
         <span class="ticker-item-meta">${[exch, type].filter(Boolean).join(' · ')}</span>
       </div>`;
   }).join('');
   dropdown.style.display = 'block';
+  dropdown.querySelectorAll('.ticker-item').forEach(item => {
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const symbol = item.dataset.symbol;
+      const parts = input.value.split(',');
+      parts[parts.length - 1] = symbol;
+      input.value = parts.join(', ');
+      _hideDropdown(dropdown);
+    });
+  });
 }
 
-function selectTicker(symbol) {
-  const input = document.getElementById('aSymbol');
-  if (input) input.value = symbol;
-  hideTickerDropdown();
-}
-
-function hideTickerDropdown() {
-  const dropdown = document.getElementById('aSymbolDropdown');
+function _hideDropdown(dropdown) {
   if (dropdown) dropdown.style.display = 'none';
+}
+
+function setupTickerAutocomplete() {
+  setupAutocomplete('aSymbol', 'aSymbolDropdown', runAnalysis);
+}
+
+function setupWatchlistAutocomplete() {
+  setupAutocomplete('wAddInput', 'wAddDropdown', addWatchlistManual);
+}
+
+function setupPortfolioAutocomplete() {
+  setupAutocomplete('pQuickAdd', 'pQuickAddDropdown', portfolioQuickAdd);
 }
 
 function updateRiskLabel(val) {
@@ -742,14 +759,15 @@ function renderWatchlistView() {
 
 function addWatchlistManual() {
   const input = document.getElementById('wAddInput');
-  const sym = input.value.trim().toUpperCase();
-  if (!sym) return;
-  addToWatchlist(sym);
+  const syms = input.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (!syms.length) return;
+  syms.forEach(sym => addToWatchlist(sym));
   state.watchlist = loadWatchlist();
   input.value = '';
+  _hideDropdown(document.getElementById('wAddDropdown'));
   renderWatchlistView();
   updateWatchlistBadge();
-  showToast(`${sym} added to watchlist`);
+  showToast(syms.length > 1 ? `${syms.length} symbols added to watchlist` : `${syms[0]} added to watchlist`);
 }
 
 function removeWatch(symbol) {
@@ -933,4 +951,68 @@ function exportPortfolioCSV() {
   a.download = `morfeo-portfolio-${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   showToast('Portfolio exported');
+}
+
+// ── Portfolio quick add ───────────────────────────────────────────
+
+function portfolioQuickAdd() {
+  const input = document.getElementById('pQuickAdd');
+  const syms = input.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (!syms.length) return;
+  input.value = '';
+  _hideDropdown(document.getElementById('pQuickAddDropdown'));
+  if (syms.length === 1) {
+    analyseFromWatchlist(syms[0]);
+  } else {
+    syms.forEach(sym => addToWatchlist(sym));
+    state.watchlist = loadWatchlist();
+    updateWatchlistBadge();
+    showToast(`${syms.length} symbols added to watchlist`);
+  }
+}
+
+// ── Backup export / import ────────────────────────────────────────
+
+function exportData() {
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    portfolio: localStorage.getItem(STORAGE_KEY),
+    watchlist: localStorage.getItem(WATCHLIST_KEY),
+    settings:  localStorage.getItem(SETTINGS_KEY),
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `morfeo-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  showToast('Backup exported');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (backup.portfolio) localStorage.setItem(STORAGE_KEY,   backup.portfolio);
+      if (backup.watchlist) localStorage.setItem(WATCHLIST_KEY, backup.watchlist);
+      if (backup.settings)  localStorage.setItem(SETTINGS_KEY,  backup.settings);
+      state.portfolio = loadPortfolio();
+      state.watchlist = loadWatchlist();
+      state.settings  = loadSettings();
+      renderDashboard();
+      renderPortfolioView();
+      renderWatchlistView();
+      renderSettingsView();
+      updatePortfolioBadge();
+      updateWatchlistBadge();
+      showToast('Backup restored');
+    } catch {
+      showToast('Invalid backup file', 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }

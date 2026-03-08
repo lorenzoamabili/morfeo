@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Morfeo — Sign In</title>
+  <link rel="icon" type="image/png" href="morfeo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap"/>
+<style>
+/* ── Reset & tokens ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #060709;
+  --bg2:         #0b0d12;
+  --surface:     #0f1118;
+  --surface2:    #141720;
+  --surface3:    #191c27;
+  --border:      #1c1f2e;
+  --border2:     #252836;
+  --border3:     #2e3245;
+  --text:        #e2e5f4;
+  --text2:       #9da3c0;
+  --muted:       #525878;
+  --dim:         #32364a;
+
+  --gold:        #c9a84c;
+  --gold2:       #e8c76a;
+  --gold-dim:    rgba(201,168,76,0.10);
+  --gold-glow:   rgba(201,168,76,0.18);
+  --gold-border: rgba(201,168,76,0.22);
+
+  --green:       #3dba7e;
+  --green-dim:   rgba(61,186,126,0.10);
+  --green-border:rgba(61,186,126,0.22);
+
+  --red:         #e04f5f;
+  --red-dim:     rgba(224,79,95,0.10);
+  --red-border:  rgba(224,79,95,0.22);
+
+  --serif: 'Syne', sans-serif;
+  --mono:  'IBM Plex Mono', monospace;
+  --r-sm:  3px;
+  --r-md:  5px;
+  --r-lg:  8px;
+}
+
+html { font-size: 13px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 300;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Background dot grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: radial-gradient(circle at 1px 1px, #1c1f2e 1px, transparent 0);
+  background-size: 24px 24px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Gold glow from top */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; height: 500px;
+  background: radial-gradient(ellipse 60% 35% at 50% -5%, rgba(201,168,76,0.06) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Card ── */
+.login-wrap {
+  position: relative; z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 16px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-lg);
+  padding: 36px 32px 32px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.6);
+}
+
+/* ── Logo ── */
+.login-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-logo-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 12px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.login-logo-name {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.login-logo-sub {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border2);
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 0 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover { color: var(--text2); }
+
+.tab-btn.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* ── Form ── */
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.field input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field input:focus {
+  border-color: var(--gold-border);
+  box-shadow: 0 0 0 2px var(--gold-dim);
+}
+
+.field input::placeholder { color: var(--muted); }
+
+/* ── Button ── */
+.btn-primary {
+  width: 100%;
+  background: var(--gold);
+  color: #060709;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  padding: 11px;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-primary:hover { background: var(--gold2); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Alert ── */
+.alert {
+  margin-top: 14px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  line-height: 1.5;
+  display: none;
+}
+
+.alert.show { display: block; }
+.alert-error { background: var(--red-dim); border: 1px solid var(--red-border); color: var(--red); }
+.alert-ok    { background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+
+/* ── Footer note ── */
+.login-footer {
+  text-align: center;
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 20px;
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <!-- Logo -->
+    <div class="login-logo">
+      <img src="morfeo.png" alt="Morfeo" class="login-logo-img"/>
+      <div class="login-logo-name">MORFEO</div>
+      <div class="login-logo-sub">Investment Platform</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabLogin" onclick="showTab('login')">Sign In</button>
+      <button class="tab-btn" id="tabRegister" onclick="showTab('register')">Create Account</button>
+    </div>
+
+    <!-- Login form -->
+    <form id="formLogin" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label>Email</label>
+        <input id="loginEmail" type="email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="loginPassword" type="password" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+      <button class="btn-primary" id="loginBtn" type="submit">Sign In →</button>
+      <div class="alert" id="loginAlert"></div>
+    </form>
+
+    <!-- Register form -->
+    <form id="formRegister" style="display:none;" onsubmit="handleRegister(event)">
+      <div class="field">
+        <label>Email</label>
+        <input id="regEmail" type="email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password <span style="color:var(--dim); font-size:9px; text-transform:none; letter-spacing:0;">— min. 8 characters</span></label>
+        <input id="regPassword" type="password" placeholder="••••••••" required autocomplete="new-password" minlength="8"/>
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input id="regConfirm" type="password" placeholder="••••••••" required autocomplete="new-password"/>
+      </div>
+      <button class="btn-primary" id="regBtn" type="submit">Create Account →</button>
+      <div class="alert" id="regAlert"></div>
+    </form>
+
+  </div>
+
+  <div class="login-footer">
+    For educational purposes only · Not financial advice
+  </div>
+</div>
+
+<script>
+// Redirect to app if already logged in
+(async () => {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (r.ok) window.location.replace('/');
+  } catch { /* not logged in */ }
+})();
+
+function showTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+  document.getElementById('formLogin').style.display = isLogin ? '' : 'none';
+  document.getElementById('formRegister').style.display = isLogin ? 'none' : '';
+}
+
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `alert alert-${type} show`;
+  el.textContent = msg;
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        email:    document.getElementById('loginEmail').value,
+        password: document.getElementById('loginPassword').value,
+      }),
+    });
+
+    if (!res.ok) {
+      let msg = `Server error (${res.status})`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      showAlert('loginAlert', 'error', msg);
+      return;
+    }
+    window.location.replace('/');
+  } catch {
+    showAlert('loginAlert', 'error', 'Cannot reach server. Start it with:\ncd morfeo-web/server && node server.js');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In →';
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const password = document.getElementById('regPassword').value;
+  const confirm  = document.getElementById('regConfirm').value;
+
+  if (password !== confirm) {
+    showAlert('regAlert', 'error', 'Passwords do not match');
+    return;
+  }
+
+  const btn = document.getElementById('regBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        email:    document.getElementById('regEmail').value,
+        password,
+      }),
+    });
+
+    if (!res.ok) {
+      let msg = `Server error (${res.status})`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      showAlert('regAlert', 'error', msg);
+      return;
+    }
+    window.location.replace('/');
+  } catch {
+    showAlert('regAlert', 'error', 'Cannot reach server. Start it with:\ncd morfeo-web/server && node server.js');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Account →';
+  }
+}
+</script>
+
+</body>
+</html>

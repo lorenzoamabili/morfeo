@@ -11,7 +11,17 @@ const YF_SEARCH = 'https://query1.finance.yahoo.com/v1/finance/search';
 // ── Search tickers by company name or symbol ─────────────────────
 
 async function searchYahooTickers(query) {
-  const url = `${YF_SEARCH}?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
+  // Primary: backend proxy (avoids CORS, enables AI if GEMINI_API_KEY is set)
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    if (r.ok) {
+      const results = await r.json();
+      if (results.length > 0) return results;
+    }
+  } catch (e) { }
+
+  // Fallback: direct Yahoo Finance + allorigins (for offline / no-backend use)
+  const url = `${YF_SEARCH}?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&enableFuzzyQuery=true`;
   let json;
   try {
     const r = await fetch(url, { mode: 'cors' });

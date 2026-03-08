@@ -6,9 +6,15 @@
   <title>Morfeo — Investment Platform</title>
   <link rel="icon" type="image/png" href="morfeo.png"/>
   <link rel="stylesheet" href="css/style.css"/>
+  <script src="js/auth.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 <body>
+
+<!-- ── AUTH GATE (shown during auth check, removed once resolved) ── -->
+<div id="authGate" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="font-family:var(--serif);color:var(--gold);font-size:15px;font-weight:700;letter-spacing:0.18em;">MORFEO</div>
+</div>
 
 <!-- ── TOAST ── -->
 <div id="toast" class="toast"></div>
@@ -124,7 +130,7 @@
 </div>
 
 <!-- ═══════════════════════════ APP SHELL ═══════════════════════════ -->
-<div class="app">
+<div class="app" style="display:none;">
 
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar" id="sidebar">
@@ -162,6 +168,13 @@
     </nav>
 
     <div class="sidebar-footer">
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <button class="btn btn-ghost btn-xs" style="flex:1;" onclick="exportData()" title="Export all data to a JSON backup file">↓ Export</button>
+        <label class="btn btn-ghost btn-xs" style="flex:1; cursor:pointer; text-align:center;" title="Restore data from a JSON backup file">
+          ↑ Import
+          <input type="file" accept=".json" style="display:none;" onchange="importData(event)"/>
+        </label>
+      </div>
       <div>Powered by Yahoo Finance</div>
       <div style="margin-top:3px; color:var(--dim);">No backend required</div>
     </div>
@@ -183,6 +196,7 @@
         </button>
         <div class="live-dot"></div>
         <div class="topbar-time" id="topbarTime"></div>
+        <div class="user-chip" id="userChip" style="display:none;"></div>
       </div>
     </div>
 
@@ -464,9 +478,10 @@
           </div>
           <div class="stat-tile">
             <div class="stat-label">Quick Add</div>
-            <div style="margin-top:6px; display:flex; gap:8px;">
-              <input id="pQuickAdd" type="text" placeholder="TICKER" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:var(--r-sm); outline:none; width:90px;"/>
-              <button class="btn btn-primary btn-sm" onclick="analyseFromWatchlist(document.getElementById('pQuickAdd').value.trim().toUpperCase())">Go</button>
+            <div style="margin-top:6px; display:flex; gap:8px; position:relative;">
+              <input id="pQuickAdd" type="text" placeholder="Ticker or list…" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:var(--r-sm); outline:none; width:130px;" autocomplete="off"/>
+              <div id="pQuickAddDropdown" class="ticker-dropdown" style="display:none;"></div>
+              <button class="btn btn-primary btn-sm" onclick="portfolioQuickAdd()">Go</button>
             </div>
           </div>
         </div>
@@ -495,9 +510,9 @@
             <div class="page-sub">Monitor symbols · One-click analysis</div>
           </div>
           <div class="flex gap-12 flex-wrap">
-            <div style="display:flex; gap:8px;">
-              <input id="wAddInput" type="text" placeholder="Add symbol…" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 12px; border-radius:var(--r-sm); outline:none; width:140px;"
-                onkeydown="if(event.key==='Enter') addWatchlistManual()"/>
+            <div style="display:flex; gap:8px; position:relative;">
+              <input id="wAddInput" type="text" placeholder="AAPL, MSFT, TSLA…" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 12px; border-radius:var(--r-sm); outline:none; width:180px;" autocomplete="off"/>
+              <div id="wAddDropdown" class="ticker-dropdown" style="display:none;"></div>
               <button class="btn btn-primary btn-sm" onclick="addWatchlistManual()">Add</button>
             </div>
             <button class="btn btn-ghost btn-sm" id="wRefreshBtn" onclick="refreshWatchlist()">↻ Refresh Signals</button>
@@ -581,6 +596,13 @@
             </div>
             <div class="divider"></div>
             <div class="card-title">Data Management</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="btn btn-ghost btn-sm" onclick="exportData()">↓ Export Backup</button>
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+                ↑ Import Backup
+                <input type="file" accept=".json" style="display:none;" onchange="importData(event)"/>
+              </label>
+            </div>
             <button class="btn btn-danger btn-sm" onclick="clearAllData()">⚠ Clear All Data</button>
             <div style="font-size:10px; color:var(--muted); margin-top:8px;">Removes portfolio, watchlist and settings from localStorage.</div>
           </div>
