@@ -28,6 +28,7 @@ function loadSettings() {
 
 function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  scheduleFirestoreSync();
 }
 
 // ── Portfolio (held positions) ────────────────────────────────────
@@ -41,6 +42,7 @@ function loadPortfolio() {
 
 function savePortfolio(portfolio) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
+  scheduleFirestoreSync();
 }
 
 // Add or update a position
@@ -97,6 +99,7 @@ function loadWatchlist() {
 
 function saveWatchlist(list) {
   localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+  scheduleFirestoreSync();
 }
 
 function addToWatchlist(symbol, name = '') {
@@ -185,4 +188,49 @@ function signalCardClass(sig) {
   if (sig === 'BUY' || sig === 'WATCH-BUY') return 'signal-buy';
   if (sig === 'SELL' || sig === 'WATCH-SELL') return 'signal-sell';
   return 'signal-hold';
+}
+
+// ── Firestore sync ────────────────────────────────────────────────
+// Debounced: writes to Firestore 1.5 s after the last data change.
+
+let _syncTimer = null;
+
+function scheduleFirestoreSync() {
+  if (typeof firebase === 'undefined') return;
+  const user = firebase.auth?.()?.currentUser;
+  if (!user) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(syncToFirestore, 1500);
+}
+
+async function syncToFirestore() {
+  const user = typeof firebase !== 'undefined' ? firebase.auth?.()?.currentUser : null;
+  if (!user) return;
+  try {
+    await firebase.firestore().collection('users').doc(user.uid).set({
+      portfolio:  loadPortfolio(),
+      watchlist:  loadWatchlist(),
+      settings:   loadSettings(),
+      updatedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('[Morfeo] Firestore sync failed:', e.message);
+  }
+}
+
+async function loadUserDataFromFirestore(uid) {
+  if (typeof firebase === 'undefined') return;
+  try {
+    const doc = await firebase.firestore().collection('users').doc(uid).get();
+    if (!doc.exists) return;
+    const data = doc.data();
+    if (Array.isArray(data.portfolio) && data.portfolio.length)
+      localStorage.setItem(STORAGE_KEY,   JSON.stringify(data.portfolio));
+    if (Array.isArray(data.watchlist) && data.watchlist.length)
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(data.watchlist));
+    if (data.settings && typeof data.settings === 'object')
+      localStorage.setItem(SETTINGS_KEY,  JSON.stringify(data.settings));
+  } catch (e) {
+    console.warn('[Morfeo] Could not load Firestore data:', e.message);
+  }
 }

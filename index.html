@@ -79,55 +79,6 @@
   </div>
 </div>
 
-<!-- ── ADD POSITION MODAL ── -->
-<div id="positionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; align-items:center; justify-content:center;">
-  <div style="background:var(--surface); border:1px solid var(--border2); border-radius:var(--r-lg); padding:28px 32px; width:100%; max-width:440px; position:relative;">
-    <div style="font-family:var(--serif); font-size:18px; font-weight:700; margin-bottom:4px;">Add Position</div>
-    <div style="font-size:12px; color:var(--muted); margin-bottom:20px;">Recording <strong id="modalSymbol" style="color:var(--gold);">—</strong> to portfolio</div>
-
-    <div class="grid-2" style="gap:14px; margin-bottom:14px;">
-      <div class="field">
-        <label>Shares</label>
-        <input id="modalShares" type="number" min="0.01" step="0.01" placeholder="e.g. 10"/>
-      </div>
-      <div class="field">
-        <label>Buy Price</label>
-        <input id="modalPrice" type="number" min="0.01" step="0.01"/>
-      </div>
-    </div>
-    <div id="modalCost" style="font-size:11px; color:var(--gold); margin-bottom:12px; min-height:16px;"></div>
-
-    <div class="grid-2" style="gap:14px; margin-bottom:14px;">
-      <div class="field">
-        <label>Buy Date</label>
-        <input id="modalDate" type="date"/>
-      </div>
-      <div class="field">
-        <label>Timeframe</label>
-        <select id="modalTf">
-          <option value="scalp">Scalp (intraday)</option>
-          <option value="swing" selected>Swing (days–weeks)</option>
-          <option value="longterm">Long-term (months+)</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="field" style="margin-bottom:14px;">
-      <label>Risk Level (0 = Conservative, 100 = Speculative)</label>
-      <input id="modalRisk" type="number" min="0" max="100" value="50"/>
-    </div>
-
-    <div class="field" style="margin-bottom:20px;">
-      <label>Notes (optional)</label>
-      <input id="modalNotes" type="text" placeholder="e.g. earnings play, long-term hold"/>
-    </div>
-
-    <div class="flex gap-12 justify-between">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="savePosition()">Save Position →</button>
-    </div>
-  </div>
-</div>
 
 <!-- ═══════════════════════════ APP SHELL ═══════════════════════════ -->
 <div class="app" style="display:none;">
@@ -453,22 +404,33 @@
         <div class="flex justify-between items-center mb-24 flex-wrap gap-12">
           <div>
             <div class="page-title">Portfolio</div>
-            <div class="page-sub">Track your positions · Live signals</div>
+            <div class="page-sub">Track your positions · Live P&amp;L</div>
           </div>
-          <div class="flex gap-12 flex-wrap">
-            <button class="btn btn-ghost btn-sm" onclick="exportPortfolioCSV()">↓ Export CSV</button>
+          <div class="flex gap-12 flex-wrap items-center">
+            <!-- Add position inline -->
+            <div style="display:flex; gap:8px; position:relative; align-items:center;">
+              <input id="pAddSymbol" type="text" placeholder="Ticker…"
+                style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:7px 10px; border-radius:var(--r-sm); outline:none; width:110px;"
+                autocomplete="off"/>
+              <div id="pAddSymbolDropdown" class="ticker-dropdown" style="display:none;"></div>
+              <input id="pAddShares" type="number" min="0.001" step="any" placeholder="Shares"
+                style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:7px 10px; border-radius:var(--r-sm); outline:none; width:80px;"
+                onkeydown="if(event.key==='Enter') addPositionManual()"/>
+              <button class="btn btn-primary btn-sm" onclick="addPositionManual()">Add</button>
+            </div>
             <button class="btn btn-ghost btn-sm" id="pRefreshAll" onclick="refreshAllPositions()">↻ Refresh All</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportPortfolioCSV()">↓ CSV</button>
           </div>
         </div>
 
         <!-- Summary stats -->
-        <div class="grid-4 mb-24">
+        <div class="grid-3 mb-24">
           <div class="stat-tile">
             <div class="stat-label">Total Value</div>
             <div class="stat-value" id="pTotalValue">—</div>
           </div>
           <div class="stat-tile">
-            <div class="stat-label">Total P&L</div>
+            <div class="stat-label">Total P&amp;L</div>
             <div class="stat-value" id="pTotalPnL">—</div>
             <div class="stat-sub" id="pTotalPnLPct"></div>
           </div>
@@ -476,29 +438,32 @@
             <div class="stat-label">Positions</div>
             <div class="stat-value" id="pPositionCount">0</div>
           </div>
-          <div class="stat-tile">
-            <div class="stat-label">Quick Add</div>
-            <div style="margin-top:6px; display:flex; gap:8px; position:relative;">
-              <input id="pQuickAdd" type="text" placeholder="Ticker or list…" style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:var(--r-sm); outline:none; width:130px;" autocomplete="off"/>
-              <div id="pQuickAddDropdown" class="ticker-dropdown" style="display:none;"></div>
-              <button class="btn btn-primary btn-sm" onclick="portfolioQuickAdd()">Go</button>
-            </div>
-          </div>
         </div>
 
-        <!-- Position cards grid -->
-        <div class="grid-2" id="pPositionGrid">
-          <div class="empty-state" style="grid-column:1/-1;">
-            <div class="empty-icon">💼</div>
-            <div class="empty-title">Portfolio is empty</div>
-            <div>Analyse a stock and click "Add to Portfolio"</div>
-          </div>
-        </div>
-
-        <!-- Correlation matrix -->
-        <div id="pCorrelation" style="display:none; margin-top:28px;">
-          <div class="card-title" style="padding:0 0 10px; border-bottom:1px solid var(--border); margin-bottom:12px;">Correlation Matrix · 60-day returns</div>
-          <div class="chart-box"><div id="pCorrChart"></div></div>
+        <!-- Positions table -->
+        <div class="card" style="padding:0; overflow:hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Shares</th>
+                <th>Buy Price</th>
+                <th>Current</th>
+                <th>P&amp;L</th>
+                <th>Signal</th>
+                <th>Added</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pList">
+              <tr><td colspan="9" class="empty-state" style="text-align:center;padding:48px;">
+                <div class="empty-icon">💼</div>
+                <div class="empty-title">Portfolio is empty</div>
+                <div>Enter a ticker and number of shares above, then click Add.</div>
+              </td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -648,6 +613,11 @@
 .toast.toast-ok    { border-color: var(--green-border); color: var(--green); }
 </style>
 
+<!-- Firebase SDK (compat v9) — must load before app scripts -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 <script src="js/indicators.js"></script>
 <script src="js/optimiser.js"></script>
 <script src="js/portfolio.js"></script>

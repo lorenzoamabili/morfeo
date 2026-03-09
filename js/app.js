@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   startClock();
 
   setupWatchlistAutocomplete();
-  setupPortfolioAutocomplete();
+  setupPortfolioAddAutocomplete();
 
   // Mobile menu
   document.getElementById('menuToggle')?.addEventListener('click', () => {
@@ -230,8 +230,8 @@ function setupWatchlistAutocomplete() {
   setupAutocomplete('wAddInput', 'wAddDropdown', addWatchlistManual);
 }
 
-function setupPortfolioAutocomplete() {
-  setupAutocomplete('pQuickAdd', 'pQuickAddDropdown', portfolioQuickAdd);
+function setupPortfolioAddAutocomplete() {
+  setupAutocomplete('pAddSymbol', 'pAddSymbolDropdown', addPositionManual);
 }
 
 function updateRiskLabel(val) {
@@ -407,7 +407,11 @@ function renderAnalysisResults(r, buyDate) {
   renderVolatilityChart('aChartVol', data.dates, ind.vol, ind.atr, data.close);
 
   // Add to portfolio / watchlist buttons
-  document.getElementById('aBtnAddPortfolio').onclick = () => openAddPositionModal(r);
+  document.getElementById('aBtnAddPortfolio').onclick = () => {
+    document.getElementById('pAddSymbol').value = symbol;
+    switchView('portfolio');
+    setTimeout(() => document.getElementById('pAddShares')?.focus(), 100);
+  };
   document.getElementById('aBtnAddWatchlist').onclick = () => {
     addToWatchlist(symbol, data.name);
     state.watchlist = loadWatchlist();
@@ -436,69 +440,51 @@ function renderWeightBars(containerId, weights) {
   }).join('');
 }
 
-// ── Add position modal ────────────────────────────────────────────
+// ── Add position (manual, from portfolio header) ──────────────────
 
-function openAddPositionModal(r) {
-  const { data, signal, riskLvl, tf } = r;
-  const lastPrice = data.close[data.close.length - 1];
-  document.getElementById('modalSymbol').textContent = data.symbol;
-  document.getElementById('modalPrice').value = lastPrice.toFixed(2);
-  document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('modalShares').value = '';
-  document.getElementById('modalRisk').value = Math.round(riskLvl * 100);
-  document.getElementById('modalTf').value = tf;
-  document.getElementById('modalNotes').value = '';
+async function addPositionManual() {
+  const symbolInput = document.getElementById('pAddSymbol');
+  const sharesInput = document.getElementById('pAddShares');
+  const sym    = symbolInput.value.trim().toUpperCase();
+  const shares = parseFloat(sharesInput.value);
 
-  // Show cost estimate on share change
-  const sharesEl = document.getElementById('modalShares');
-  const costEl = document.getElementById('modalCost');
-  sharesEl.oninput = () => {
-    const cost = parseFloat(sharesEl.value) * lastPrice;
-    costEl.textContent = isNaN(cost) ? '' : `Cost: ${fmtCurrency(cost, data.currency)}`;
-  };
+  if (!sym)              { showToast('Enter a ticker symbol', 'error'); return; }
+  if (!shares || shares <= 0) { showToast('Enter a valid number of shares', 'error'); return; }
 
-  document.getElementById('positionModal').style.display = 'flex';
-}
+  showToast(`Adding ${sym}…`);
 
-function closeModal() {
-  document.getElementById('positionModal').style.display = 'none';
-}
+  // Fetch current price via backend proxy
+  let buyPrice = null;
+  let name = sym;
+  try {
+    const r = await fetch(`/api/quote?symbol=${encodeURIComponent(sym)}`);
+    if (r.ok) {
+      const json = await r.json();
+      const q = json?.quoteResponse?.result?.[0];
+      if (q) { buyPrice = q.regularMarketPrice; name = q.longName || q.shortName || sym; }
+    }
+  } catch (e) { }
 
-function savePosition() {
-  const symbol = document.getElementById('modalSymbol').textContent;
-  const shares = parseFloat(document.getElementById('modalShares').value);
-  const buyPrice = parseFloat(document.getElementById('modalPrice').value);
-  const buyDate = document.getElementById('modalDate').value;
-  const riskLevel = parseInt(document.getElementById('modalRisk').value);
-  const tf = document.getElementById('modalTf').value;
-  const notes = document.getElementById('modalNotes').value;
-
-  if (!shares || shares <= 0 || !buyPrice || buyPrice <= 0) {
-    showToast('Please enter valid shares and price.', 'error');
+  if (!buyPrice) {
+    showToast(`Could not fetch price for ${sym} — check the symbol`, 'error');
     return;
   }
 
-  const cached = state.portfolioCache[symbol] || null;
-  const name = cached?.data?.name || symbol;
+  const portfolio = loadPortfolio();
+  const idx = portfolio.findIndex(p => p.symbol === sym);
+  const entry = { symbol: sym, name, shares, buyPrice, addedAt: Date.now(), currentPrice: buyPrice, lastSignal: null, lastUpdated: Date.now() };
+  if (idx >= 0) portfolio[idx] = { ...portfolio[idx], ...entry };
+  else portfolio.push(entry);
+  savePortfolio(portfolio);
 
-  upsertPosition({ symbol, name, shares, buyPrice, buyDate, notes, timeframe: tf, riskLevel });
   state.portfolio = loadPortfolio();
-
-  // Pre-fill live data if we have it cached
-  if (cached) {
-    const lastPrice = cached.data.close[cached.data.close.length - 1];
-    updatePositionLiveData(symbol, {
-      currentPrice: lastPrice,
-      lastSignal: cached.signal,
-      fundamentals: cached.funds,
-    });
-    state.portfolio = loadPortfolio();
-  }
-
-  closeModal();
-  showToast(`${symbol} added to portfolio`);
-  updatePortfolioBadge();
+  symbolInput.value = '';
+  sharesInput.value = '';
+  _hideDropdown(document.getElementById('pAddSymbolDropdown'));
   renderPortfolioView();
+  renderDashboard();
+  updatePortfolioBadge();
+  showToast(`${sym} added — ${shares} shares @ ${fmtCurrency(buyPrice)}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -568,135 +554,67 @@ function renderDashboard() {
 
 function renderPortfolioView() {
   state.portfolio = loadPortfolio();
-  const summary = portfolioSummary(state.portfolio);
+  const summary  = portfolioSummary(state.portfolio);
   const currency = state.settings?.currency || 'USD';
 
   document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
-  document.getElementById('pTotalPnL').textContent = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL);
-  document.getElementById('pTotalPnL').className = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
+  document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL);
+  document.getElementById('pTotalPnL').className     = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
   const pnlPctEl = document.getElementById('pTotalPnLPct');
   if (pnlPctEl) pnlPctEl.textContent = fmtPct(summary.totalPnLPct);
   document.getElementById('pPositionCount').textContent = summary.positions;
 
-  const grid = document.getElementById('pPositionGrid');
+  const tbody = document.getElementById('pList');
   if (state.portfolio.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="text-align:center;padding:40px;">
       <div class="empty-icon">💼</div>
-      <div class="empty-title">No positions yet</div>
-      <div>Analyse a stock and click "Add to Portfolio" to track it here.</div>
-    </div>`;
-    document.getElementById('pCorrelation').style.display = 'none';
+      <div class="empty-title">Portfolio is empty</div>
+      <div>Enter a ticker and number of shares above, then click Add.</div>
+    </td></tr>`;
     return;
   }
 
-  grid.innerHTML = state.portfolio.map(p => renderPositionCard(p)).join('');
-
-  // Correlation matrix (if ≥ 2 positions with cached data)
-  const withData = state.portfolio.filter(p => state.portfolioCache[p.symbol]);
-  if (withData.length >= 2) {
-    const portData = withData.map(p => ({
-      symbol: p.symbol,
-      close: state.portfolioCache[p.symbol].data.close,
-    }));
-    const matrix = correlationMatrix(portData);
-    document.getElementById('pCorrelation').style.display = 'block';
-    renderCorrelationHeatmap('pCorrChart', withData.map(p => p.symbol), matrix);
-  } else {
-    document.getElementById('pCorrelation').style.display = 'none';
-  }
-}
-
-function renderPositionCard(p) {
-  const { pnl, pnlPct } = positionPnL(p);
-  const cost = p.shares * p.buyPrice;
-  const value = p.currentPrice ? p.shares * p.currentPrice : null;
-
-  return `
-    <div class="position-card ${signalCardClass(p.lastSignal)}">
-      <div class="pos-header">
-        <div>
-          <div class="pos-ticker">${p.symbol}</div>
-          <div class="pos-name">${p.name}</div>
-        </div>
-        <div class="flex gap-8 items-center">
-          ${p.lastSignal ? `<span class="badge ${signalBadgeClass(p.lastSignal)}">${p.lastSignal}</span>` : ''}
-          <div class="pos-actions">
-            <button class="btn btn-ghost btn-xs" onclick="refreshPosition('${p.symbol}')" title="Refresh signal">↻</button>
-            <button class="btn btn-danger btn-xs" onclick="removePos('${p.symbol}')" title="Remove">✕</button>
+  tbody.innerHTML = state.portfolio.map(p => {
+    const { pnl, pnlPct } = positionPnL(p);
+    return `
+      <tr>
+        <td><span style="font-weight:500;">${p.symbol}</span></td>
+        <td class="text-muted text-xs">${p.name || '—'}</td>
+        <td>${p.shares.toLocaleString()}</td>
+        <td>${fmtCurrency(p.buyPrice)}</td>
+        <td>${p.currentPrice ? fmtCurrency(p.currentPrice) : '—'}</td>
+        <td class="${pnlPct != null ? (pnlPct >= 0 ? 'text-green' : 'text-red') : ''}">
+          ${pnlPct != null ? fmtPct(pnlPct) + '<br><span style="font-size:10px;opacity:.7;">' + (pnl >= 0 ? '+' : '') + fmtCurrency(pnl) + '</span>' : '—'}
+        </td>
+        <td>${p.lastSignal ? `<span class="badge ${signalBadgeClass(p.lastSignal)}">${p.lastSignal}</span>` : '—'}</td>
+        <td class="text-xs text-muted">${p.addedAt ? timeAgo(p.addedAt) : '—'}</td>
+        <td>
+          <div class="flex gap-8">
+            <button class="btn btn-ghost btn-xs" onclick="refreshPosition('${p.symbol}')" title="Update price">↻</button>
+            <button class="btn btn-ghost btn-xs" onclick="analyseFromWatchlist('${p.symbol}')">Analyse</button>
+            <button class="btn btn-danger btn-xs" onclick="removePos('${p.symbol}')">✕ Sell</button>
           </div>
-        </div>
-      </div>
-
-      <div class="pos-grid">
-        <div class="pos-stat">
-          <div class="pos-stat-label">Shares</div>
-          <div class="pos-stat-val">${p.shares.toLocaleString()}</div>
-        </div>
-        <div class="pos-stat">
-          <div class="pos-stat-label">Avg Cost</div>
-          <div class="pos-stat-val">${fmtCurrency(p.buyPrice)}</div>
-        </div>
-        <div class="pos-stat">
-          <div class="pos-stat-label">Current</div>
-          <div class="pos-stat-val">${p.currentPrice ? fmtCurrency(p.currentPrice) : '—'}</div>
-        </div>
-        <div class="pos-stat">
-          <div class="pos-stat-label">Cost Basis</div>
-          <div class="pos-stat-val">${fmtCurrency(cost)}</div>
-        </div>
-        <div class="pos-stat">
-          <div class="pos-stat-label">Market Value</div>
-          <div class="pos-stat-val">${value ? fmtCurrency(value) : '—'}</div>
-        </div>
-        <div class="pos-stat">
-          <div class="pos-stat-label">P&L</div>
-          <div class="pos-stat-val ${pnlPct >= 0 ? 'pos' : 'neg'}">${fmtPct(pnlPct)} ${pnl != null ? '(' + (pnl >= 0 ? '+' : '') + fmtCurrency(pnl) + ')' : ''}</div>
-        </div>
-      </div>
-
-      <div class="pos-footer">
-        <div class="flex gap-12 flex-wrap">
-          <div class="mini-metric"><span class="mini-metric-label">TF</span><span class="mini-metric-val" style="margin-left:4px;">${p.timeframe || '—'}</span></div>
-          <div class="mini-metric"><span class="mini-metric-label">RISK</span><span class="mini-metric-val" style="margin-left:4px;">${riskProfile(p.riskLevel || 50).label}</span></div>
-          <div class="mini-metric"><span class="mini-metric-label">SINCE</span><span class="mini-metric-val" style="margin-left:4px;">${fmtDate(p.buyDate)}</span></div>
-        </div>
-        ${p.lastUpdated ? `<div class="text-xs text-muted">Updated ${timeAgo(p.lastUpdated)}</div>` : ''}
-      </div>
-
-      ${p.notes ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);font-style:italic;">${p.notes}</div>` : ''}
-    </div>`;
+        </td>
+      </tr>`;
+  }).join('');
 }
 
 async function refreshPosition(symbol) {
-  showToast(`Refreshing ${symbol}…`);
-  const pos = loadPortfolio().find(p => p.symbol === symbol);
-  if (!pos) return;
-
   try {
-    const now = Math.floor(Date.now() / 1000);
-    const start = Math.floor(Date.now() / 1000) - 60 * 24 * 3600;
-    const data = await fetchYahooOHLCV(symbol, start, now, '1d');
-    const config = timeframeConfig(pos.timeframe || 'swing');
-    const ind = buildIndicators(data, config);
-    const riskLvl = (pos.riskLevel || 50) / 100;
+    const r = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
+    if (!r.ok) throw new Error('Quote fetch failed');
+    const json = await r.json();
+    const q = json?.quoteResponse?.result?.[0];
+    if (!q) throw new Error('No quote data');
 
-    const { bestWeights, bestSignal } = await optimise(data.close, ind, {
-      nTrials: 200,
-      riskLevel: riskLvl,
+    updatePositionLiveData(symbol, {
+      currentPrice: q.regularMarketPrice,
+      name: q.longName || q.shortName || symbol,
     });
-
-    const lastRSI = ind.rsi.filter(v => v != null).pop();
-    const signal = currentSignal(bestSignal, lastRSI, riskLvl);
-    const lastPrice = data.close[data.close.length - 1];
-    const funds = await fetchFundamentals(symbol);
-
-    state.portfolioCache[symbol] = { data, ind, net: bestSignal, signal, funds, riskLvl };
-
-    updatePositionLiveData(symbol, { currentPrice: lastPrice, lastSignal: signal, fundamentals: funds });
     state.portfolio = loadPortfolio();
     renderPortfolioView();
     renderDashboard();
-    showToast(`${symbol} updated — signal: ${signal}`);
+    showToast(`${symbol} → ${fmtCurrency(q.regularMarketPrice)}`);
   } catch (e) {
     showToast(`Failed to refresh ${symbol}: ${e.message}`, 'error');
   }
@@ -708,10 +626,10 @@ async function refreshAllPositions() {
   const positions = loadPortfolio();
   for (const p of positions) {
     await refreshPosition(p.symbol);
-    await new Promise(r => setTimeout(r, 500)); // rate-limit
+    await new Promise(r => setTimeout(r, 300));
   }
   if (btn) btn.disabled = false;
-  showToast('All positions refreshed');
+  showToast('All positions updated');
 }
 
 function removePos(symbol) {
@@ -846,8 +764,13 @@ function clearAllData() {
   localStorage.removeItem(SETTINGS_KEY);
   state.portfolio = [];
   state.watchlist = [];
-  state.settings = loadSettings();
+  state.settings  = loadSettings();
   state.portfolioCache = {};
+  // Also wipe Firestore document for this user
+  const user = typeof firebase !== 'undefined' ? firebase.auth?.()?.currentUser : null;
+  if (user) {
+    firebase.firestore().collection('users').doc(user.uid).delete().catch(() => {});
+  }
   renderDashboard();
   renderPortfolioView();
   renderWatchlistView();
@@ -951,24 +874,6 @@ function exportPortfolioCSV() {
   a.download = `morfeo-portfolio-${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   showToast('Portfolio exported');
-}
-
-// ── Portfolio quick add ───────────────────────────────────────────
-
-function portfolioQuickAdd() {
-  const input = document.getElementById('pQuickAdd');
-  const syms = input.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-  if (!syms.length) return;
-  input.value = '';
-  _hideDropdown(document.getElementById('pQuickAddDropdown'));
-  if (syms.length === 1) {
-    analyseFromWatchlist(syms[0]);
-  } else {
-    syms.forEach(sym => addToWatchlist(sym));
-    state.watchlist = loadWatchlist();
-    updateWatchlistBadge();
-    showToast(`${syms.length} symbols added to watchlist`);
-  }
 }
 
 // ── Backup export / import ────────────────────────────────────────

@@ -1,34 +1,48 @@
 // ═══════════════════════════════════════════════════════════════
 // MORFEO — auth.js
-// Auth guard: redirects to /login.html if not authenticated.
-// Exposes: logout(), currentUser (set after initAuth resolves)
+// Firebase Auth guard. Redirects to /login.html if not logged in.
+// Exposes: currentUser, logout()
+// Requires: Firebase SDK + firebase-config.js loaded before app.js
 // ═══════════════════════════════════════════════════════════════
 
 let currentUser = null;
 
 async function initAuth() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (!res.ok) {
-      window.location.replace('/login.html');
-      // Suspend execution forever — the page will navigate away.
-      // Without this, app.js continues initialising while redirecting.
-      await new Promise(() => {});
-    }
-    currentUser = await res.json();
-    renderUserChip(currentUser.email);
-    // Reveal the app now that auth is confirmed
+  // If Firebase config hasn't been filled in, run in offline mode
+  if (typeof FIREBASE_CONFIG === 'undefined' || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+    console.warn('[Morfeo] Firebase not configured — running in offline mode. Fill in js/firebase-config.js.');
     document.getElementById('authGate').style.display = 'none';
     document.querySelector('.app').style.display = 'flex';
-    return currentUser;
-  } catch {
-    // Server not reachable — offline / plain file-server mode.
-    // Show the app anyway so it remains usable without a backend.
-    document.getElementById('authGate').style.display = 'none';
-    document.querySelector('.app').style.display = 'flex';
-    console.warn('[Morfeo] Auth server not reachable — running in offline mode');
     return null;
   }
+
+  // Initialize Firebase (guard against double-init)
+  if (!firebase.apps.length) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+  }
+
+  // Wait for the first auth state event
+  return new Promise((resolve) => {
+    const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+      unsubscribe(); // only handle the initial check here
+
+      if (!user) {
+        window.location.replace('/login.html');
+        await new Promise(() => {}); // freeze — page navigates away
+        return;
+      }
+
+      currentUser = user;
+      renderUserChip(user.email);
+
+      // Load user data from Firestore into localStorage before the app renders
+      await loadUserDataFromFirestore(user.uid);
+
+      document.getElementById('authGate').style.display = 'none';
+      document.querySelector('.app').style.display = 'flex';
+      resolve(user);
+    });
+  });
 }
 
 function renderUserChip(email) {
@@ -53,7 +67,7 @@ function renderUserChip(email) {
 
 async function logout() {
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    await firebase.auth().signOut();
   } finally {
     window.location.replace('/login.html');
   }

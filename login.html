@@ -60,7 +60,6 @@ body {
   overflow: hidden;
 }
 
-/* Background dot grid */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
@@ -70,7 +69,6 @@ body::before {
   pointer-events: none;
 }
 
-/* Gold glow from top */
 body::after {
   content: '';
   position: fixed; top: 0; left: 0; right: 0; height: 500px;
@@ -78,7 +76,6 @@ body::after {
   pointer-events: none; z-index: 0;
 }
 
-/* ── Card ── */
 .login-wrap {
   position: relative; z-index: 1;
   width: 100%;
@@ -94,144 +91,78 @@ body::after {
   box-shadow: 0 4px 40px rgba(0,0,0,0.6);
 }
 
-/* ── Logo ── */
-.login-logo {
-  text-align: center;
-  margin-bottom: 28px;
-}
+.login-logo { text-align: center; margin-bottom: 28px; }
 
 .login-logo-img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  margin-bottom: 12px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+  width: 48px; height: 48px;
+  object-fit: contain; margin-bottom: 12px;
+  display: block; margin-left: auto; margin-right: auto;
 }
 
 .login-logo-name {
   font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--gold);
-  letter-spacing: 0.05em;
-  line-height: 1;
+  font-size: 22px; font-weight: 800;
+  color: var(--gold); letter-spacing: 0.05em; line-height: 1;
 }
 
 .login-logo-sub {
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-top: 4px;
+  font-size: 9px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); margin-top: 4px;
 }
 
-/* ── Tabs ── */
-.tab-bar {
-  display: flex;
-  border-bottom: 1px solid var(--border2);
-  margin-bottom: 24px;
-}
+.tab-bar { display: flex; border-bottom: 1px solid var(--border2); margin-bottom: 24px; }
 
 .tab-btn {
-  flex: 1;
-  background: none;
-  border: none;
+  flex: 1; background: none; border: none;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 8px 0 10px;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  margin-bottom: -1px;
+  color: var(--muted); font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 0 10px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s; margin-bottom: -1px;
 }
-
 .tab-btn:hover { color: var(--text2); }
+.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
 
-.tab-btn.active {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
-}
-
-/* ── Form ── */
-.field {
-  margin-bottom: 14px;
-}
+.field { margin-bottom: 14px; }
 
 .field label {
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 5px;
+  display: block; font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
 }
 
 .field input {
   width: 100%;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--r-sm);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 13px;
-  padding: 9px 12px;
-  outline: none;
-  transition: border-color 0.15s;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--r-sm); color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  padding: 9px 12px; outline: none; transition: border-color 0.15s;
 }
-
-.field input:focus {
-  border-color: var(--gold-border);
-  box-shadow: 0 0 0 2px var(--gold-dim);
-}
-
+.field input:focus { border-color: var(--gold-border); box-shadow: 0 0 0 2px var(--gold-dim); }
 .field input::placeholder { color: var(--muted); }
 
-/* ── Button ── */
 .btn-primary {
-  width: 100%;
-  background: var(--gold);
-  color: #060709;
-  border: none;
-  border-radius: var(--r-sm);
-  font-family: var(--serif);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  padding: 11px;
-  cursor: pointer;
-  margin-top: 6px;
+  width: 100%; background: var(--gold); color: #060709;
+  border: none; border-radius: var(--r-sm);
+  font-family: var(--serif); font-weight: 700;
+  font-size: 13px; letter-spacing: 0.04em;
+  padding: 11px; cursor: pointer; margin-top: 6px;
   transition: background 0.15s, opacity 0.15s;
 }
-
 .btn-primary:hover { background: var(--gold2); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Alert ── */
 .alert {
-  margin-top: 14px;
-  padding: 9px 12px;
-  border-radius: var(--r-sm);
-  font-size: 11px;
-  line-height: 1.5;
-  display: none;
+  margin-top: 14px; padding: 9px 12px;
+  border-radius: var(--r-sm); font-size: 11px;
+  line-height: 1.5; display: none;
 }
-
 .alert.show { display: block; }
 .alert-error { background: var(--red-dim); border: 1px solid var(--red-border); color: var(--red); }
 .alert-ok    { background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
 
-/* ── Footer note ── */
 .login-footer {
-  text-align: center;
-  font-size: 10px;
-  color: var(--dim);
-  margin-top: 20px;
-  line-height: 1.6;
+  text-align: center; font-size: 10px; color: var(--dim);
+  margin-top: 20px; line-height: 1.6;
 }
 </style>
 </head>
@@ -240,14 +171,12 @@ body::after {
 <div class="login-wrap">
   <div class="login-card">
 
-    <!-- Logo -->
     <div class="login-logo">
       <img src="morfeo.png" alt="Morfeo" class="login-logo-img"/>
       <div class="login-logo-name">MORFEO</div>
       <div class="login-logo-sub">Investment Platform</div>
     </div>
 
-    <!-- Tabs -->
     <div class="tab-bar">
       <button class="tab-btn active" id="tabLogin" onclick="showTab('login')">Sign In</button>
       <button class="tab-btn" id="tabRegister" onclick="showTab('register')">Create Account</button>
@@ -274,8 +203,8 @@ body::after {
         <input id="regEmail" type="email" placeholder="you@example.com" required autocomplete="email"/>
       </div>
       <div class="field">
-        <label>Password <span style="color:var(--dim); font-size:9px; text-transform:none; letter-spacing:0;">— min. 8 characters</span></label>
-        <input id="regPassword" type="password" placeholder="••••••••" required autocomplete="new-password" minlength="8"/>
+        <label>Password <span style="color:var(--dim); font-size:9px; text-transform:none; letter-spacing:0;">— min. 6 characters</span></label>
+        <input id="regPassword" type="password" placeholder="••••••••" required autocomplete="new-password" minlength="6"/>
       </div>
       <div class="field">
         <label>Confirm Password</label>
@@ -292,14 +221,24 @@ body::after {
   </div>
 </div>
 
+<!-- Firebase SDK (compat v9) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 <script>
-// Redirect to app if already logged in
-(async () => {
-  try {
-    const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (r.ok) window.location.replace('/');
-  } catch { /* not logged in */ }
-})();
+// Init Firebase
+if (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY') {
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+
+  // Redirect to app if already logged in
+  firebase.auth().onAuthStateChanged(user => {
+    if (user) window.location.replace('/');
+  });
+} else {
+  // No Firebase configured — show offline notice
+  document.querySelector('.login-footer').textContent =
+    'Firebase not configured. Fill in js/firebase-config.js to enable auth.';
+}
 
 function showTab(tab) {
   const isLogin = tab === 'login';
@@ -318,32 +257,17 @@ function showAlert(id, type, msg) {
 async function handleLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('loginBtn');
-  btn.disabled = true;
-  btn.textContent = 'Signing in…';
-
+  btn.disabled = true; btn.textContent = 'Signing in…';
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        email:    document.getElementById('loginEmail').value,
-        password: document.getElementById('loginPassword').value,
-      }),
-    });
-
-    if (!res.ok) {
-      let msg = `Server error (${res.status})`;
-      try { msg = (await res.json()).error || msg; } catch {}
-      showAlert('loginAlert', 'error', msg);
-      return;
-    }
+    await firebase.auth().signInWithEmailAndPassword(
+      document.getElementById('loginEmail').value.trim().toLowerCase(),
+      document.getElementById('loginPassword').value
+    );
     window.location.replace('/');
-  } catch {
-    showAlert('loginAlert', 'error', 'Cannot reach server. Start it with:\ncd morfeo-web/server && node server.js');
+  } catch (err) {
+    showAlert('loginAlert', 'error', friendlyError(err.code));
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Sign In →';
+    btn.disabled = false; btn.textContent = 'Sign In →';
   }
 }
 
@@ -351,39 +275,34 @@ async function handleRegister(e) {
   e.preventDefault();
   const password = document.getElementById('regPassword').value;
   const confirm  = document.getElementById('regConfirm').value;
-
   if (password !== confirm) {
     showAlert('regAlert', 'error', 'Passwords do not match');
     return;
   }
-
   const btn = document.getElementById('regBtn');
-  btn.disabled = true;
-  btn.textContent = 'Creating account…';
-
+  btn.disabled = true; btn.textContent = 'Creating account…';
   try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        email:    document.getElementById('regEmail').value,
-        password,
-      }),
-    });
-
-    if (!res.ok) {
-      let msg = `Server error (${res.status})`;
-      try { msg = (await res.json()).error || msg; } catch {}
-      showAlert('regAlert', 'error', msg);
-      return;
-    }
+    await firebase.auth().createUserWithEmailAndPassword(
+      document.getElementById('regEmail').value.trim().toLowerCase(),
+      password
+    );
     window.location.replace('/');
-  } catch {
-    showAlert('regAlert', 'error', 'Cannot reach server. Start it with:\ncd morfeo-web/server && node server.js');
+  } catch (err) {
+    showAlert('regAlert', 'error', friendlyError(err.code));
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Create Account →';
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+}
+
+function friendlyError(code) {
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential': return 'Invalid email or password.';
+    case 'auth/email-already-in-use': return 'An account with this email already exists.';
+    case 'auth/invalid-email':        return 'Invalid email address.';
+    case 'auth/weak-password':        return 'Password must be at least 6 characters.';
+    default: return 'Authentication error — please try again.';
   }
 }
 </script>

@@ -39,6 +39,18 @@ async function searchYahooTickers(query) {
 // ── Fetch OHLCV from Yahoo Finance ──────────────────────────────
 
 async function fetchYahooOHLCV(symbol, period1, period2, interval = '1d') {
+  // Primary: backend proxy (avoids CORS blocks on hosted environments)
+  try {
+    const r = await fetch(
+      `/api/ohlcv?symbol=${encodeURIComponent(symbol)}&period1=${period1}&period2=${period2}&interval=${interval}`
+    );
+    if (r.ok) {
+      const json = await r.json();
+      if (json?.chart?.result) return parseOHLCV(json, symbol);
+    }
+  } catch (e) { }
+
+  // Fallback: direct Yahoo Finance (works locally, may be CORS-blocked when hosted)
   const url = `${YF_BASE}${encodeURIComponent(symbol)}?period1=${period1}&period2=${period2}&interval=${interval}&events=history`;
   let json;
   try {
@@ -95,18 +107,29 @@ function parseOHLCV(json, symbol) {
 // ── Fetch fundamental data from Yahoo quote ──────────────────────
 
 async function fetchFundamentals(symbol) {
-  const url = `${YF_QUOTE}${encodeURIComponent(symbol)}`;
   try {
     let json;
+
+    // Primary: backend proxy
     try {
-      const r = await fetch(url, { mode: 'cors' });
+      const r = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
       if (r.ok) json = await r.json();
     } catch (e) { }
+
+    // Fallback: direct + allorigins
     if (!json) {
-      const r = await fetch(ALLORIGINS + encodeURIComponent(url));
-      const w = await r.json();
-      json = JSON.parse(w.contents);
+      const url = `${YF_QUOTE}${encodeURIComponent(symbol)}`;
+      try {
+        const r = await fetch(url, { mode: 'cors' });
+        if (r.ok) json = await r.json();
+      } catch (e) { }
+      if (!json) {
+        const r = await fetch(ALLORIGINS + encodeURIComponent(url));
+        const w = await r.json();
+        json = JSON.parse(w.contents);
+      }
     }
+
     const q = json?.quoteResponse?.result?.[0];
     if (!q) return null;
     return {
