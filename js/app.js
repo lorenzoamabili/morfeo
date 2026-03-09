@@ -118,10 +118,9 @@ function initAnalysisView() {
     updateRiskLabel(parseInt(e.target.value));
   });
 
-  // Buy date default
-  const today = new Date().toISOString().split('T')[0];
+  // Buy date — no default, cap at today
   const buyInput = document.getElementById('aBuyDate');
-  if (buyInput) { buyInput.value = today; buyInput.max = today; }
+  if (buyInput) buyInput.max = new Date().toISOString().split('T')[0];
 
   // Enter key + ticker autocomplete
   setupTickerAutocomplete();
