@@ -45,32 +45,6 @@ function savePortfolio(portfolio) {
   scheduleFirestoreSync();
 }
 
-// Add or update a position
-function upsertPosition(pos) {
-  // pos: { symbol, name, shares, buyPrice, buyDate, notes, timeframe, riskLevel }
-  const portfolio = loadPortfolio();
-  const idx = portfolio.findIndex(p => p.symbol === pos.symbol.toUpperCase());
-  const entry = {
-    symbol: pos.symbol.toUpperCase(),
-    name: pos.name || pos.symbol.toUpperCase(),
-    shares: parseFloat(pos.shares),
-    buyPrice: parseFloat(pos.buyPrice),
-    buyDate: pos.buyDate || new Date().toISOString().split('T')[0],
-    notes: pos.notes || '',
-    timeframe: pos.timeframe || 'swing',
-    riskLevel: pos.riskLevel != null ? pos.riskLevel : 50,
-    addedAt: Date.now(),
-    // live data — refreshed separately
-    currentPrice: null,
-    lastSignal: null,
-    lastUpdated: null,
-    fundamentals: null,
-  };
-  if (idx >= 0) portfolio[idx] = { ...portfolio[idx], ...entry };
-  else portfolio.push(entry);
-  savePortfolio(portfolio);
-  return portfolio;
-}
 
 function removePosition(symbol) {
   const portfolio = loadPortfolio().filter(p => p.symbol !== symbol.toUpperCase());
@@ -173,7 +147,8 @@ function fmtPct(v, decimals = 2) {
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Use T12:00:00 to avoid UTC midnight shifting date back by one in western timezones
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function signalBadgeClass(sig) {

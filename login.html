@@ -265,6 +265,7 @@ async function handleLogin(e) {
     );
     window.location.replace('/');
   } catch (err) {
+    console.error('[Morfeo] Login error:', err.code, err.message);
     showAlert('loginAlert', 'error', friendlyError(err.code));
   } finally {
     btn.disabled = false; btn.textContent = 'Sign In →';
@@ -288,6 +289,7 @@ async function handleRegister(e) {
     );
     window.location.replace('/');
   } catch (err) {
+    console.error('[Morfeo] Register error:', err.code, err.message);
     showAlert('regAlert', 'error', friendlyError(err.code));
   } finally {
     btn.disabled = false; btn.textContent = 'Create Account →';
@@ -298,11 +300,16 @@ function friendlyError(code) {
   switch (code) {
     case 'auth/user-not-found':
     case 'auth/wrong-password':
-    case 'auth/invalid-credential': return 'Invalid email or password.';
-    case 'auth/email-already-in-use': return 'An account with this email already exists.';
-    case 'auth/invalid-email':        return 'Invalid email address.';
-    case 'auth/weak-password':        return 'Password must be at least 6 characters.';
-    default: return 'Authentication error — please try again.';
+    case 'auth/invalid-credential':    return 'Invalid email or password.';
+    case 'auth/email-already-in-use':  return 'An account with this email already exists.';
+    case 'auth/invalid-email':         return 'Invalid email address.';
+    case 'auth/weak-password':         return 'Password must be at least 6 characters.';
+    case 'auth/user-disabled':         return 'This account has been disabled.';
+    case 'auth/too-many-requests':     return 'Too many attempts — wait a moment and try again.';
+    case 'auth/network-request-failed':return 'Network error — check your connection.';
+    case 'auth/operation-not-allowed':
+    case 'auth/configuration-not-found': return 'Email/password sign-in is not enabled. Go to Firebase Console → Authentication → Sign-in methods and enable Email/Password.';
+    default: return `Authentication error (${code || 'unknown'}) — check the browser console for details.`;
   }
 }
 </script>

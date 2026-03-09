@@ -631,14 +631,30 @@ async function refreshPosition(symbol) {
     const q = json?.quoteResponse?.result?.[0];
     if (!q) throw new Error('No quote data');
 
+    let price = q.regularMarketPrice || q.regularMarketPreviousClose || q.ask || null;
+
+    // Fallback: last close from OHLCV if quote returned no price
+    if (!price) {
+      const now   = Math.floor(Date.now() / 1000);
+      const start = now - 7 * 24 * 3600;
+      const or = await fetch(`/api/ohlcv?symbol=${encodeURIComponent(symbol)}&period1=${start}&period2=${now}&interval=1d`);
+      if (or.ok) {
+        const oj = await or.json();
+        const closes = oj?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+        if (closes) price = [...closes].reverse().find(v => v != null) ?? null;
+      }
+    }
+
+    if (!price) throw new Error('Could not determine current price');
+
     updatePositionLiveData(symbol, {
-      currentPrice: q.regularMarketPrice,
+      currentPrice: price,
       name: q.longName || q.shortName || symbol,
     });
     state.portfolio = loadPortfolio();
     renderPortfolioView();
     renderDashboard();
-    showToast(`${symbol} → ${fmtCurrency(q.regularMarketPrice)}`);
+    showToast(`${symbol} → ${fmtCurrency(price)}`);
   } catch (e) {
     showToast(`Failed to refresh ${symbol}: ${e.message}`, 'error');
   }

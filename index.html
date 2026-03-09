@@ -127,7 +127,7 @@
         </label>
       </div>
       <div>Powered by Yahoo Finance</div>
-      <div style="margin-top:3px; color:var(--dim);">No backend required</div>
+      <div style="margin-top:3px; color:var(--dim);">Firebase · Express backend</div>
     </div>
   </aside>
 
@@ -414,7 +414,8 @@
                 autocomplete="off"/>
               <div id="pAddSymbolDropdown" class="ticker-dropdown" style="display:none;"></div>
               <input id="pAddShares" type="number" min="0.001" step="any" placeholder="Shares"
-                style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:7px 10px; border-radius:var(--r-sm); outline:none; width:80px;"/>
+                style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:7px 10px; border-radius:var(--r-sm); outline:none; width:80px;"
+                onkeydown="if(event.key==='Enter') addPositionManual()"/>
               <input id="pAddDate" type="date" title="Buy date (leave blank for today)"
                 style="background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; padding:7px 10px; border-radius:var(--r-sm); outline:none; width:140px;"
                 onkeydown="if(event.key==='Enter') addPositionManual()"/>
@@ -546,8 +547,8 @@
           <div class="card">
             <div class="card-title">About Morfeo</div>
             <div style="font-size:12px; color:var(--text2); line-height:1.8;">
-              <p style="margin-bottom:10px;">Morfeo is a fully client-side investment analysis platform. All data is fetched live from Yahoo Finance. No backend server, no API key, no login required.</p>
-              <p style="margin-bottom:10px;">Portfolio and watchlist data is stored in your browser's <code style="font-size:10px; background:var(--surface2); padding:1px 4px; border-radius:2px;">localStorage</code>. Clearing your browser data will erase it.</p>
+              <p style="margin-bottom:10px;">Morfeo is an investment analysis platform powered by Yahoo Finance. Data is fetched via an Express backend proxy. User accounts and persistent data are managed through Firebase.</p>
+              <p style="margin-bottom:10px;">Portfolio and watchlist data is synced to Firestore and also cached in <code style="font-size:10px; background:var(--surface2); padding:1px 4px; border-radius:2px;">localStorage</code> for fast offline access.</p>
               <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
                 <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">Indicators Used</div>
                 <div class="flex flex-wrap gap-8">
