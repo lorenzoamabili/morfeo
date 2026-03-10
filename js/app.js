@@ -460,41 +460,34 @@ async function addPositionManual() {
 
   showToast(`Adding ${sym}…`);
 
-  // Fetch current price + metadata — quote API first, OHLCV last-close as fallback
+  // Fetch current price + metadata using the same robust helpers
+  // as the analysis & watchlist views (backend proxy + direct + CORS fallback).
   let buyPrice = null;
   let name = sym;
   let sector = null;
   let dividendYield = 0;
 
   try {
-    const r = await fetch(`/api/quote?symbol=${encodeURIComponent(sym)}`);
-    if (r.ok) {
-      const json = await r.json();
-      const q = json?.quoteResponse?.result?.[0];
-      if (q) {
-        buyPrice = q.regularMarketPrice || q.regularMarketPreviousClose || q.ask || null;
-        name = q.longName || q.shortName || sym;
-        sector = q.sector || null;
-        dividendYield = q.dividendYield ? q.dividendYield * 100 : 0;
-      }
-    }
-  } catch (e) { }
+    const now   = Math.floor(Date.now() / 1000);
+    // Use ~3 months of history so we satisfy the minimum bar
+    // requirement even for thinly-traded or newly-listed symbols.
+    const start = now - 90 * 24 * 3600;
 
-  // Secondary fallback: last close from OHLCV
-  if (!buyPrice) {
-    try {
-      const now   = Math.floor(Date.now() / 1000);
-      const start = now - 7 * 24 * 3600;
-      const r = await fetch(`/api/ohlcv?symbol=${encodeURIComponent(sym)}&period1=${start}&period2=${now}&interval=1d`);
-      if (r.ok) {
-        const json = await r.json();
-        const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-        if (closes) buyPrice = [...closes].reverse().find(v => v != null) ?? null;
-        const meta = json?.chart?.result?.[0]?.meta;
-        if (meta) name = meta.longName || meta.shortName || sym;
-      }
-    } catch (e) { }
-  }
+    // Fetch OHLCV for a reliable last price + name,
+    // and fundamentals in parallel as a secondary source.
+    const [ohlcv, funds] = await Promise.allSettled([
+      fetchYahooOHLCV(sym, start, now, '1d'),
+      fetchFundamentals(sym),
+    ]);
+
+    const oVal = ohlcv.status === 'fulfilled' ? ohlcv.value : null;
+    const fVal = funds.status === 'fulfilled' ? funds.value : null;
+
+    buyPrice = oVal?.lastPrice ?? fVal?.price ?? null;
+    name = oVal?.name || fVal?.name || sym;
+    sector = fVal?.sector || null;
+    dividendYield = fVal?.dividendYieldRaw || 0;
+  } catch (e) { }
 
   if (!buyPrice) {
     showToast(`Could not fetch price for ${sym} — check the symbol`, 'error');
@@ -735,31 +728,30 @@ function _renderPortfolioCharts() {
 
 async function refreshPosition(symbol) {
   try {
-    const r = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
-    if (!r.ok) throw new Error('Quote fetch failed');
-    const json = await r.json();
-    const q = json?.quoteResponse?.result?.[0];
-    if (!q) throw new Error('No quote data');
+    const now   = Math.floor(Date.now() / 1000);
+    // Use a longer window so even symbols with sparse trading
+    // still return enough bars for indicators.js.
+    const start = now - 90 * 24 * 3600;
 
-    let price = q.regularMarketPrice || q.regularMarketPreviousClose || q.ask || null;
+    // Prefer OHLCV (backend + direct + CORS-fallback) but fall back
+    // to fundamentals (quote API) so sparse symbols still refresh,
+    // matching addPositionManual behaviour.
+    const [ohlcv, funds] = await Promise.allSettled([
+      fetchYahooOHLCV(symbol, start, now, '1d'),
+      fetchFundamentals(symbol),
+    ]);
 
-    // Fallback: last close from OHLCV if quote returned no price
-    if (!price) {
-      const now   = Math.floor(Date.now() / 1000);
-      const start = now - 7 * 24 * 3600;
-      const or = await fetch(`/api/ohlcv?symbol=${encodeURIComponent(symbol)}&period1=${start}&period2=${now}&interval=1d`);
-      if (or.ok) {
-        const oj = await or.json();
-        const closes = oj?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-        if (closes) price = [...closes].reverse().find(v => v != null) ?? null;
-      }
-    }
+    const oVal = ohlcv.status === 'fulfilled' ? ohlcv.value : null;
+    const fVal = funds.status === 'fulfilled' ? funds.value : null;
+
+    const price = oVal?.lastPrice ?? fVal?.price ?? null;
+    const name  = oVal?.name || fVal?.name || symbol;
 
     if (!price) throw new Error('Could not determine current price');
 
     updatePositionLiveData(symbol, {
       currentPrice: price,
-      name: q.longName || q.shortName || symbol,
+      name,
     });
     state.portfolio = loadPortfolio();
     renderPortfolioView();

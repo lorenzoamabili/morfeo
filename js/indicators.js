@@ -87,7 +87,9 @@ function parseOHLCV(json, symbol) {
     volume: q.volume[i]
   })).filter(r => r.close != null && r.high != null && r.low != null);
 
-  if (rows.length < 20) throw new Error(`Insufficient data for ${symbol} (${rows.length} bars). Try a longer period.`);
+  // Allow short histories for portfolio/price use-cases, but still require
+  // at least a few valid bars so we don't operate on junk.
+  if (rows.length < 5) throw new Error(`Insufficient data for ${symbol} (${rows.length} bars). Try a longer period.`);
 
   return {
     dates: rows.map(r => r.date),
@@ -132,7 +134,15 @@ async function fetchFundamentals(symbol) {
 
     const q = json?.quoteResponse?.result?.[0];
     if (!q) return null;
+    const price = q.regularMarketPrice || q.regularMarketPreviousClose || q.ask || null;
     return {
+      // Core price / identity fields (also used by portfolio view)
+      price,
+      name: q.longName || q.shortName || symbol,
+      currency: q.currency || 'USD',
+      sector: q.sector || null,
+
+      // Valuation + fundamentals (used by analysis view)
       pe: q.trailingPE ? q.trailingPE.toFixed(1) : 'N/A',
       forwardPE: q.forwardPE ? q.forwardPE.toFixed(1) : 'N/A',
       eps: q.epsTrailingTwelveMonths ? q.epsTrailingTwelveMonths.toFixed(2) : 'N/A',
@@ -143,7 +153,6 @@ async function fetchFundamentals(symbol) {
       fiftyTwoHigh: q.fiftyTwoWeekHigh ? q.fiftyTwoWeekHigh.toFixed(2) : 'N/A',
       fiftyTwoLow: q.fiftyTwoWeekLow ? q.fiftyTwoWeekLow.toFixed(2) : 'N/A',
       avgVolume: q.averageDailyVolume10Day ? fmtVol(q.averageDailyVolume10Day) : 'N/A',
-      sector: q.sector || null,
     };
   } catch (e) { return null; }
 }
