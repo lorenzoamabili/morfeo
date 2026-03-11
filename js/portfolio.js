@@ -159,6 +159,22 @@ function signalBadgeClass(sig) {
   return 'badge-hold';
 }
 
+function explainSignal(sig) {
+  if (!sig) return 'No active recommendation.';
+  switch (sig) {
+    case 'BUY':
+      return 'Optimiser sees favourable momentum/RSI setup for a new long position.';
+    case 'SELL':
+      return 'Conditions suggest downside risk outweighs upside — consider taking profits or reducing exposure.';
+    case 'WATCH-BUY':
+      return 'Close to a potential BUY — momentum improving but setup not fully confirmed yet.';
+    case 'WATCH-SELL':
+      return 'Close to a potential SELL — weakness building but not yet a strong exit signal.';
+    default:
+      return 'Neutral / hold — no strong edge detected by the optimiser.';
+  }
+}
+
 function signalCardClass(sig) {
   if (!sig) return '';
   if (sig === 'BUY' || sig === 'WATCH-BUY') return 'signal-buy';

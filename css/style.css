@@ -497,6 +497,34 @@ body::after {
 }
 .chart-box > div { width: 100%; min-height: 400px; }
 
+/* Main analysis chart (price + signals) */
+.chart-box-main > div { min-height: 380px; }
+
+/* 2x2 sub-charts grid: MACD, RSI, Volatility & ATR, Volume */
+.chart-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 12px 12px;
+}
+.chart-cell {
+  min-width: 0;
+}
+.chart-cell-label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.chart-box-sub {
+  margin-bottom: 0;
+}
+.chart-box-sub > div {
+  min-height: 240px;
+  width: 100%;
+}
+
 /* ══ TABLE ══ */
 .data-table {
   width: 100%;

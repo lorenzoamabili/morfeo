@@ -360,29 +360,33 @@
             <div id="aConsensus"></div>
           </div>
 
-          <!-- Main Chart -->
+          <!-- Main Chart (linked with 2x2 below) -->
           <div class="card-title" style="padding:0 0 10px; border-bottom:1px solid var(--border); margin-bottom:12px;">Price Chart · Signals</div>
-          <div class="chart-box mb-8"><div id="aChartMain"></div></div>
+          <div class="chart-box chart-box-main mb-8"><div id="aChartMain"></div></div>
 
-          <!-- Sub charts -->
-          <div class="grid-2 mb-16">
-            <div>
-              <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">MACD</div>
-              <div class="chart-box"><div id="aChartMACD"></div></div>
+          <!-- Sub charts 2x2: MACD, RSI, Volatility & ATR, Volume (all linked by time) -->
+          <div class="chart-grid-2x2 mb-16">
+            <div class="chart-cell">
+              <div class="chart-cell-label">MACD</div>
+              <div class="chart-box chart-box-sub"><div id="aChartMACD"></div></div>
             </div>
-            <div>
-              <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">RSI (14)</div>
-              <div class="chart-box"><div id="aChartRSI"></div></div>
+            <div class="chart-cell">
+              <div class="chart-cell-label">RSI (14)</div>
+              <div class="chart-box chart-box-sub"><div id="aChartRSI"></div></div>
+            </div>
+            <div class="chart-cell">
+              <div class="chart-cell-label">Volatility & ATR</div>
+              <div class="chart-box chart-box-sub"><div id="aChartVol"></div></div>
+            </div>
+            <div class="chart-cell">
+              <div class="chart-cell-label">Volume</div>
+              <div class="chart-box chart-box-sub"><div id="aChartVolume"></div></div>
             </div>
           </div>
 
-          <!-- Volatility Chart -->
-          <div style="font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Volatility & ATR</div>
-          <div class="chart-box mb-16"><div id="aChartVol"></div></div>
-
           <!-- Optimised Weights -->
           <div class="card mb-16">
-            <div class="card-title">Optimised Indicator Weights</div>
+            <div class="card-title" title="How much the optimiser relied on each indicator when generating the signal.">Optimised Indicator Weights</div>
             <div id="aWeights"></div>
           </div>
 

@@ -157,6 +157,44 @@ async function fetchFundamentals(symbol) {
   } catch (e) { return null; }
 }
 
+// ── Unified latest-price helper (used across views) ────────────────
+// Fetches the most recent price + basic metadata for a symbol using
+// OHLCV as the primary source and quote/fundamentals as a fallback.
+// Throws a descriptive error if no reliable price can be determined.
+
+async function fetchLatestPriceAndMeta(symbol, opts = {}) {
+  const days = opts.days || 90;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const period1 = nowSec - days * 24 * 3600;
+
+  const [ohlcvRes, fundsRes] = await Promise.allSettled([
+    fetchYahooOHLCV(symbol, period1, nowSec, '1d'),
+    fetchFundamentals(symbol),
+  ]);
+
+  const o = ohlcvRes.status === 'fulfilled' ? ohlcvRes.value : null;
+  const f = fundsRes.status === 'fulfilled' ? fundsRes.value : null;
+
+  const price = o?.lastPrice ?? f?.price ?? null;
+  const name = o?.name || f?.name || symbol;
+  const sector = f?.sector || null;
+  const currency = o?.currency || f?.currency || 'USD';
+  // Use null when fundamentals are missing so callers can
+  // distinguish "no data" from an actual 0% yield.
+  const dividendYield = (f && typeof f.dividendYieldRaw === 'number')
+    ? f.dividendYieldRaw
+    : null;
+
+  if (!price) {
+    const reason = !o && !f
+      ? 'no response from Yahoo Finance'
+      : 'insufficient historical or quote data';
+    throw new Error(`Could not determine current price for ${symbol}: ${reason}.`);
+  }
+
+  return { price, name, sector, currency, dividendYield };
+}
+
 function fmtMarketCap(v) {
   if (v >= 1e12) return (v / 1e12).toFixed(2) + 'T';
   if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';

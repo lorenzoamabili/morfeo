@@ -194,7 +194,7 @@ function renderMACDChart(containerId, data, ind) {
 
   Plotly.newPlot(containerId, traces, {
     ...BASE_LAYOUT,
-    height: 160,
+    height: 240,
     margin: { ...BASE_LAYOUT.margin, t: 10, b: 40 },
     showlegend: false,
     yaxis: { ...BASE_LAYOUT.yaxis, zeroline: true, zerolinecolor: '#252836', zerolinewidth: 1 },
@@ -218,7 +218,7 @@ function renderRSIChart(containerId, data, ind) {
 
   Plotly.newPlot(containerId, traces, {
     ...BASE_LAYOUT,
-    height: 140,
+    height: 240,
     margin: { ...BASE_LAYOUT.margin, t: 10, b: 40 },
     showlegend: false,
     yaxis: {
@@ -410,8 +410,65 @@ function renderVolatilityChart(containerId, dates, vol, atr, close) {
 
   Plotly.newPlot(containerId, traces, {
     ...BASE_LAYOUT,
-    height: 200,
-    margin: { ...BASE_LAYOUT.margin, t: 10 },
+    height: 240,
+    margin: { ...BASE_LAYOUT.margin, t: 10, b: 40 },
     yaxis: { ...BASE_LAYOUT.yaxis, ticksuffix: '%' },
   }, PLOTLY_CONFIG);
+}
+
+// ── Volume chart (bars) ─────────────────────────────────────────────
+
+function renderVolumeChart(containerId, data) {
+  const { dates, volume, close } = data;
+  if (!volume || volume.length === 0) {
+    const el = document.getElementById(containerId);
+    if (el) el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;">No volume data</div>';
+    return;
+  }
+  const colors = volume.map((v, i) => (i > 0 && close[i] >= close[i - 1]) ? CHART_THEME.green : CHART_THEME.red);
+
+  Plotly.newPlot(containerId, [{
+    x: dates,
+    y: volume,
+    type: 'bar',
+    name: 'Volume',
+    marker: { color: colors, opacity: 0.7, line: { width: 0 } },
+  }], {
+    ...BASE_LAYOUT,
+    height: 240,
+    margin: { ...BASE_LAYOUT.margin, t: 10, b: 40 },
+    showlegend: false,
+    yaxis: { ...BASE_LAYOUT.yaxis, tickformat: ',.0s', title: { text: 'Volume' } },
+  }, PLOTLY_CONFIG);
+}
+
+// ── Link analysis charts by x-axis (zoom/pan sync) ─────────────────
+// Call after rendering main + MACD, RSI, Vol, Volume.
+
+const LINKED_ANALYSIS_IDS = ['aChartMain', 'aChartMACD', 'aChartRSI', 'aChartVol', 'aChartVolume'];
+
+function linkAnalysisCharts() {
+  let syncing = false;
+  function applyRange(sourceId, range) {
+    if (!range || !Array.isArray(range) || range.length !== 2) return;
+    syncing = true;
+    LINKED_ANALYSIS_IDS.forEach(id => {
+      if (id === sourceId) return;
+      const el = document.getElementById(id);
+      if (el && el.data) Plotly.relayout(id, { 'xaxis.range': range });
+    });
+    syncing = false;
+  }
+  LINKED_ANALYSIS_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || !el.data) return;
+    if (el._linkRelayout && typeof el.removeListener === 'function') el.removeListener('plotly_relayout', el._linkRelayout);
+    el._linkRelayout = function(ev) {
+      if (syncing || !ev || Object.keys(ev).length === 0) return;
+      const range = ev['xaxis.range'] || (ev['xaxis.range[0]'] != null && ev['xaxis.range[1]'] != null
+        ? [ev['xaxis.range[0]'], ev['xaxis.range[1]']] : null);
+      if (range) applyRange(id, range);
+    };
+    el.on('plotly_relayout', el._linkRelayout);
+  });
 }

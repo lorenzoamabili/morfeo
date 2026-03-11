@@ -361,16 +361,32 @@ function renderAnalysisResults(r, buyDate) {
   const sigEl = document.getElementById('aResSignal');
   sigEl.textContent = signal;
   sigEl.className = 'badge ' + signalBadgeClass(signal);
+  sigEl.title = explainSignal(signal);
 
   // Stats
   const profitEl = document.getElementById('aResProfit');
   profitEl.textContent = fmtPct(result.profitPct);
   profitEl.className = 'stat-value ' + (result.profitPct >= 0 ? 'pos' : 'neg');
 
-  document.getElementById('aResBah').textContent = fmtPct(bah);
-  document.getElementById('aResWinRate').textContent = result.numTrades ? `${result.winRate}%` : '—';
-  document.getElementById('aResWinRate2').textContent = result.numTrades ? `${result.winRate}%` : '—';
-  document.getElementById('aResDrawdown').textContent = result.maxDrawdownPct > 0 ? `-${result.maxDrawdownPct}%` : '—';
+  // Tooltips to help interpret key stats
+  profitEl.title = 'Total return of the optimised strategy over the backtest period.';
+
+  const bahEl = document.getElementById('aResBah');
+  bahEl.textContent = fmtPct(bah);
+  bahEl.title = 'Buy & hold return over the same period (no timing, just holding).';
+
+  const winRateEl = document.getElementById('aResWinRate');
+  winRateEl.textContent = result.numTrades ? `${result.winRate}%` : '—';
+  winRateEl.title = 'Percentage of closed trades that were profitable.';
+
+  const winRate2El = document.getElementById('aResWinRate2');
+  winRate2El.textContent = result.numTrades ? `${result.winRate}%` : '—';
+  winRate2El.title = 'Win rate shown on the equity curve card.';
+
+  const ddEl = document.getElementById('aResDrawdown');
+  ddEl.textContent = result.maxDrawdownPct > 0 ? `-${result.maxDrawdownPct}%` : '—';
+  ddEl.title = 'Largest peak‑to‑trough loss during the backtest (risk of big dips).';
+
   document.getElementById('aResTrades').textContent = result.numTrades;
 
   const lastPrice = data.close[data.close.length - 1];
@@ -379,12 +395,22 @@ function renderAnalysisResults(r, buyDate) {
   const atrLast = ind.atr.filter(v => v != null).pop();
   const slSugg = suggestStopLoss(data.close, ind.atr, riskLvl);
   const posSugg = suggestPositionSize(riskLvl);
-  document.getElementById('aResStopLoss').textContent = `${slSugg}%  (${(lastPrice * slSugg / 100).toFixed(2)})`;
-  document.getElementById('aResPosSize').textContent = `${posSugg}% of balance`;
+  const slEl = document.getElementById('aResStopLoss');
+  slEl.textContent = `${slSugg}%  (${(lastPrice * slSugg / 100).toFixed(2)})`;
+  slEl.title = 'Suggested stop loss distance based on recent ATR (volatility‑aware).';
+
+  const psEl = document.getElementById('aResPosSize');
+  psEl.textContent = `${posSugg}% of balance`;
+  psEl.title = 'Suggested position size as a % of account balance for this risk level.';
 
   const lastVol = ind.vol.filter(v => v != null).pop();
-  document.getElementById('aResVol').textContent = lastVol ? `${lastVol.toFixed(1)}%` : '—';
-  document.getElementById('aResATR').textContent = atrLast ? `${atrLast.toFixed(2)} (${(atrLast / lastPrice * 100).toFixed(1)}%)` : '—';
+  const volEl = document.getElementById('aResVol');
+  volEl.textContent = lastVol ? `${lastVol.toFixed(1)}%` : '—';
+  volEl.title = 'Recent historical volatility (higher = larger typical swings).';
+
+  const atrEl = document.getElementById('aResATR');
+  atrEl.textContent = atrLast ? `${atrLast.toFixed(2)} (${(atrLast / lastPrice * 100).toFixed(1)}%)` : '—';
+  atrEl.title = 'Average True Range: average daily range in price / % terms.';
 
   // Fundamentals
   if (funds) {
@@ -405,11 +431,13 @@ function renderAnalysisResults(r, buyDate) {
   // Weights
   renderWeightBars('aWeights', bestWeights);
 
-  // Charts
+  // Charts (main + 2x2 sub-charts; all linked by time for zoom/pan sync)
   renderAnalysisChart('aChartMain', data, ind, net, { buyDateStr: buyDate });
   renderMACDChart('aChartMACD', data, ind);
   renderRSIChart('aChartRSI', data, ind);
   renderVolatilityChart('aChartVol', data.dates, ind.vol, ind.atr, data.close);
+  renderVolumeChart('aChartVolume', data);
+  setTimeout(linkAnalysisCharts, 0);
 
   // Add to portfolio / watchlist buttons
   document.getElementById('aBtnAddPortfolio').onclick = () => {
@@ -429,6 +457,13 @@ function renderAnalysisResults(r, buyDate) {
 
 function renderWeightBars(containerId, weights) {
   const labels = { rsiW: 'RSI', trendW: 'EMA Trend', macdW: 'MACD', bollW: 'Bollinger', ichiW: 'Ichimoku' };
+  const help = {
+    rsiW: 'Relative Strength Index: measures overbought/oversold momentum.',
+    trendW: 'EMA trend: direction and strength of the moving-average trend.',
+    macdW: 'MACD: momentum and trend‑following crossover strength.',
+    bollW: 'Bollinger Bands: price position vs. volatility bands.',
+    ichiW: 'Ichimoku Cloud: multi‑factor trend and support/resistance.',
+  };
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -438,7 +473,7 @@ function renderWeightBars(containerId, weights) {
     const sign = v >= 0 ? '+' : '';
     return `
       <div class="weight-row">
-        <div class="weight-name">${labels[k] || k}</div>
+        <div class="weight-name" title="${help[k] || ''}">${labels[k] || k}</div>
         <div class="weight-bar-bg"><div class="weight-bar-fill" style="width:${pct}%"></div></div>
         <div class="weight-pct">${sign}${(v * 100).toFixed(0)}%</div>
       </div>`;
@@ -460,74 +495,64 @@ async function addPositionManual() {
 
   showToast(`Adding ${sym}…`);
 
-  // Fetch current price + metadata using the same robust helpers
-  // as the analysis & watchlist views (backend proxy + direct + CORS fallback).
-  let buyPrice = null;
-  let name = sym;
-  let sector = null;
-  let dividendYield = 0;
-
   try {
-    const now   = Math.floor(Date.now() / 1000);
-    // Use ~3 months of history so we satisfy the minimum bar
-    // requirement even for thinly-traded or newly-listed symbols.
-    const start = now - 90 * 24 * 3600;
+    // Unified helper (OHLCV + fundamentals with robust fallbacks)
+    const latest = await fetchLatestPriceAndMeta(sym, { days: 90 });
 
-    // Fetch OHLCV for a reliable last price + name,
-    // and fundamentals in parallel as a secondary source.
-    const [ohlcv, funds] = await Promise.allSettled([
-      fetchYahooOHLCV(sym, start, now, '1d'),
-      fetchFundamentals(sym),
-    ]);
+    const buyPrice = latest.price;
+    const name = latest.name;
+    const sector = latest.sector;
+    const dividendYield = latest.dividendYield;
 
-    const oVal = ohlcv.status === 'fulfilled' ? ohlcv.value : null;
-    const fVal = funds.status === 'fulfilled' ? funds.value : null;
-
-    buyPrice = oVal?.lastPrice ?? fVal?.price ?? null;
-    name = oVal?.name || fVal?.name || sym;
-    sector = fVal?.sector || null;
-    dividendYield = fVal?.dividendYieldRaw || 0;
-  } catch (e) { }
-
-  if (!buyPrice) {
-    showToast(`Could not fetch price for ${sym} — check the symbol`, 'error');
-    return;
-  }
-
-  const portfolio = loadPortfolio();
-  const idx = portfolio.findIndex(p => p.symbol === sym);
-  const entry = {
-    symbol: sym, name, shares, buyPrice, buyDate: buyDate || null,
-    addedAt: Date.now(), currentPrice: buyPrice, lastSignal: null,
-    lastUpdated: Date.now(), sector: sector || null, dividendYield,
-  };
-
-  let toastMsg;
-  if (idx >= 0) {
-    const ex = portfolio[idx];
-    const totalShares = Math.round((ex.shares + shares) * 1e8) / 1e8;
-    const avgPrice    = Math.round(((ex.shares * ex.buyPrice + shares * buyPrice) / totalShares) * 100) / 100;
-    portfolio[idx] = {
-      ...ex, shares: totalShares, buyPrice: avgPrice, currentPrice: buyPrice,
-      lastUpdated: Date.now(), sector: sector || ex.sector || null,
-      dividendYield: dividendYield || ex.dividendYield || 0,
+    const portfolio = loadPortfolio();
+    const idx = portfolio.findIndex(p => p.symbol === sym);
+    const entry = {
+      symbol: sym,
+      name,
+      shares,
+      buyPrice,
+      buyDate: buyDate || null,
+      addedAt: Date.now(),
+      currentPrice: buyPrice,
+      lastSignal: null,
+      lastUpdated: Date.now(),
+      sector: sector || null,
+      dividendYield: dividendYield ?? 0,
     };
-    toastMsg = `${sym} averaged — ${totalShares} shares @ avg ${fmtCurrency(avgPrice)}`;
-  } else {
-    portfolio.push(entry);
-    toastMsg = `${sym} added — ${shares} shares @ ${fmtCurrency(buyPrice)}`;
-  }
-  savePortfolio(portfolio);
 
-  state.portfolio = loadPortfolio();
-  symbolInput.value = '';
-  sharesInput.value = '';
-  if (dateInput) dateInput.value = '';
-  _hideDropdown(document.getElementById('pAddSymbolDropdown'));
-  renderPortfolioView();
-  renderDashboard();
-  updatePortfolioBadge();
-  showToast(toastMsg);
+    let toastMsg;
+    if (idx >= 0) {
+      const ex = portfolio[idx];
+      const totalShares = Math.round((ex.shares + shares) * 1e8) / 1e8;
+      const avgPrice    = Math.round(((ex.shares * ex.buyPrice + shares * buyPrice) / totalShares) * 100) / 100;
+      portfolio[idx] = {
+        ...ex,
+        shares: totalShares,
+        buyPrice: avgPrice,
+        currentPrice: buyPrice,
+        lastUpdated: Date.now(),
+        sector: sector || ex.sector || null,
+        dividendYield: (dividendYield ?? ex.dividendYield ?? 0),
+      };
+      toastMsg = `${sym} averaged — ${totalShares} shares @ avg ${fmtCurrency(avgPrice)}`;
+    } else {
+      portfolio.push(entry);
+      toastMsg = `${sym} added — ${shares} shares @ ${fmtCurrency(buyPrice)}`;
+    }
+    savePortfolio(portfolio);
+
+    state.portfolio = loadPortfolio();
+    symbolInput.value = '';
+    sharesInput.value = '';
+    if (dateInput) dateInput.value = '';
+    _hideDropdown(document.getElementById('pAddSymbolDropdown'));
+    renderPortfolioView();
+    renderDashboard();
+    updatePortfolioBadge();
+    showToast(toastMsg);
+  } catch (e) {
+    showToast(e.message || `Could not fetch price for ${sym}`, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -688,14 +713,15 @@ function renderPortfolioView() {
         <td class="${pnlPct != null ? (pnlPct >= 0 ? 'text-green' : 'text-red') : ''}">
           ${pnlPct != null ? fmtPct(pnlPct) + '<br><span style="font-size:10px;opacity:.7;">' + (pnl >= 0 ? '+' : '') + fmtCurrency(pnl) + '</span>' : '—'}
         </td>
-        <td>${p.lastSignal ? `<span class="badge ${signalBadgeClass(p.lastSignal)}">${p.lastSignal}</span>` : '—'}</td>
+        <td>${p.lastSignal ? `<span class="badge ${signalBadgeClass(p.lastSignal)}" title="${explainSignal(p.lastSignal)}">${p.lastSignal}</span>` : '—'}</td>
         <td class="text-xs">${divYield}</td>
         <td class="text-xs text-muted">${p.buyDate ? fmtDate(p.buyDate) : (p.addedAt ? timeAgo(p.addedAt) : '—')}</td>
         <td>
           <div class="flex gap-8">
-            <button class="btn btn-ghost btn-xs" onclick="refreshPosition('${p.symbol}')" title="Update price">↻</button>
-            <button class="btn btn-ghost btn-xs" onclick="analyseFromWatchlist('${p.symbol}')">Analyse</button>
-            <button class="btn btn-danger btn-xs" onclick="removePos('${p.symbol}')">✕ Sell</button>
+            <button class="btn btn-ghost btn-xs" onclick="refreshPosition('${p.symbol}')" title="Update price from latest data">↻</button>
+            <button class="btn btn-ghost btn-xs" onclick="editPos('${p.symbol}')" title="Edit position (shares / buy price / date)">✎</button>
+            <button class="btn btn-ghost btn-xs" onclick="analyseFromWatchlist('${p.symbol}')" title="Re-run analysis for this symbol">Analyse</button>
+            <button class="btn btn-danger btn-xs" onclick="removePos('${p.symbol}')" title="Remove position from portfolio">✕ Sell</button>
           </div>
         </td>
       </tr>`;
@@ -728,26 +754,9 @@ function _renderPortfolioCharts() {
 
 async function refreshPosition(symbol) {
   try {
-    const now   = Math.floor(Date.now() / 1000);
-    // Use a longer window so even symbols with sparse trading
-    // still return enough bars for indicators.js.
-    const start = now - 90 * 24 * 3600;
-
-    // Prefer OHLCV (backend + direct + CORS-fallback) but fall back
-    // to fundamentals (quote API) so sparse symbols still refresh,
-    // matching addPositionManual behaviour.
-    const [ohlcv, funds] = await Promise.allSettled([
-      fetchYahooOHLCV(symbol, start, now, '1d'),
-      fetchFundamentals(symbol),
-    ]);
-
-    const oVal = ohlcv.status === 'fulfilled' ? ohlcv.value : null;
-    const fVal = funds.status === 'fulfilled' ? funds.value : null;
-
-    const price = oVal?.lastPrice ?? fVal?.price ?? null;
-    const name  = oVal?.name || fVal?.name || symbol;
-
-    if (!price) throw new Error('Could not determine current price');
+    const latest = await fetchLatestPriceAndMeta(symbol, { days: 90 });
+    const price = latest.price;
+    const name  = latest.name || symbol;
 
     updatePositionLiveData(symbol, {
       currentPrice: price,
@@ -766,9 +775,12 @@ async function refreshAllPositions() {
   const btn = document.getElementById('pRefreshAll');
   if (btn) btn.disabled = true;
   const positions = loadPortfolio();
+
+  // Run refreshes sequentially to avoid race conditions where
+  // multiple concurrent saves to localStorage can overwrite each
+  // other’s updates.
   for (const p of positions) {
     await refreshPosition(p.symbol);
-    await new Promise(r => setTimeout(r, 300));
   }
   // Save daily value snapshot
   const summary = portfolioSummary(loadPortfolio());
@@ -785,6 +797,49 @@ function removePos(symbol) {
   renderDashboard();
   updatePortfolioBadge();
   showToast(`${symbol} removed`);
+}
+
+function editPos(symbol) {
+  const portfolio = loadPortfolio();
+  const idx = portfolio.findIndex(p => p.symbol === symbol.toUpperCase());
+  if (idx < 0) return;
+  const pos = portfolio[idx];
+
+  const newSharesStr = prompt(`Update shares for ${symbol}:`, pos.shares);
+  if (newSharesStr === null) return;
+  const newShares = parseFloat(newSharesStr);
+  if (!newShares || newShares <= 0) {
+    showToast('Invalid shares value', 'error');
+    return;
+  }
+
+  const newPriceStr = prompt(`Update buy price for ${symbol}:`, pos.buyPrice);
+  if (newPriceStr === null) return;
+  const newPrice = parseFloat(newPriceStr);
+  if (!newPrice || newPrice <= 0) {
+    showToast('Invalid buy price', 'error');
+    return;
+  }
+
+  const newDateStr = prompt(
+    `Update buy date for ${symbol} (YYYY-MM-DD, leave empty to clear):`,
+    pos.buyDate || ''
+  );
+  const buyDate = newDateStr && newDateStr.trim() ? newDateStr.trim() : null;
+
+  portfolio[idx] = {
+    ...pos,
+    shares: newShares,
+    buyPrice: newPrice,
+    buyDate,
+    lastUpdated: Date.now(),
+  };
+  savePortfolio(portfolio);
+  state.portfolio = loadPortfolio();
+  renderPortfolioView();
+  renderDashboard();
+  updatePortfolioBadge();
+  showToast(`${symbol} position updated`);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -809,7 +864,7 @@ function renderWatchlistView() {
       <td><span style="font-weight:500;">${w.symbol}</span></td>
       <td class="text-muted text-xs">${w.name || '—'}</td>
       <td>${w.currentPrice ? fmtCurrency(w.currentPrice) : '—'}</td>
-      <td>${w.lastSignal ? `<span class="badge ${signalBadgeClass(w.lastSignal)}">${w.lastSignal}</span>` : '—'}</td>
+      <td>${w.lastSignal ? `<span class="badge ${signalBadgeClass(w.lastSignal)}" title="${explainSignal(w.lastSignal)}">${w.lastSignal}</span>` : '—'}</td>
       <td class="text-xs text-muted">${w.lastUpdated ? timeAgo(w.lastUpdated) : '—'}</td>
       <td>
         <div class="flex gap-8">
