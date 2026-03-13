@@ -3,10 +3,11 @@
 // Persistent portfolio management via localStorage
 // ═══════════════════════════════════════════════════════════════
 
-const STORAGE_KEY   = 'meridian_portfolio_v3';
-const WATCHLIST_KEY = 'meridian_watchlist_v3';
-const SETTINGS_KEY  = 'meridian_settings_v3';
-const SNAPSHOTS_KEY = 'meridian_snapshots_v1';
+const STORAGE_KEY        = 'meridian_portfolio_v3';
+const WATCHLIST_KEY      = 'meridian_watchlist_v3';
+const SETTINGS_KEY       = 'meridian_settings_v3';
+const SNAPSHOTS_KEY      = 'meridian_snapshots_v1';
+const SIGNALS_UPDATE_KEY = 'meridian_signals_updated_v1';
 
 // ── Defaults ─────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ const DEFAULT_SETTINGS = {
   defaultTimeframe: 'swing',
   defaultPeriod: 6,
   initialBalance: 10000,
-  currency: 'USD',
+  currency: 'EUR',
 };
 
 // ── Settings ──────────────────────────────────────────────────────
@@ -129,14 +130,14 @@ function positionPnL(pos) {
 
 // ── Format helpers ────────────────────────────────────────────────
 
-function fmtCurrency(v, currency = 'USD') {
+function fmtCurrency(v, currency = 'EUR') {
   if (v == null) return '—';
   const abs = Math.abs(v);
   const str = abs >= 1000
     ? abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
     : abs.toFixed(2);
   const sign = v < 0 ? '-' : '';
-  const sym = currency === 'USD' ? '$' : currency + ' ';
+  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency + ' ';
   return `${sign}${sym}${str}`;
 }
 
@@ -228,6 +229,17 @@ async function loadUserDataFromFirestore(uid) {
   } catch (e) {
     console.warn('[Morfeo] Could not load Firestore data:', e.message);
   }
+}
+
+// ── Signals update timestamp ──────────────────────────────────────
+
+function saveSignalsUpdateTime() {
+  localStorage.setItem(SIGNALS_UPDATE_KEY, Date.now().toString());
+}
+
+function loadSignalsUpdateTime() {
+  const v = localStorage.getItem(SIGNALS_UPDATE_KEY);
+  return v ? parseInt(v, 10) : null;
 }
 
 // ── Portfolio value snapshots ──────────────────────────────────────

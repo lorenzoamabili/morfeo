@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupWatchlistAutocomplete();
   setupPortfolioAddAutocomplete();
+  startAutoSignalRefresh();
 
   // Mobile menu
   document.getElementById('menuToggle')?.addEventListener('click', () => {
@@ -664,11 +665,18 @@ function renderPortfolioView() {
   const currency = state.settings?.currency || 'USD';
 
   document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
-  document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL);
+  document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL, currency);
   document.getElementById('pTotalPnL').className     = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
   const pnlPctEl = document.getElementById('pTotalPnLPct');
   if (pnlPctEl) pnlPctEl.textContent = fmtPct(summary.totalPnLPct);
   document.getElementById('pPositionCount').textContent = summary.positions;
+
+  // Last signals update label
+  const lastUpdateEl = document.getElementById('pSignalsLastUpdate');
+  if (lastUpdateEl) {
+    const ts = loadSignalsUpdateTime();
+    lastUpdateEl.textContent = ts ? `Signals updated ${timeAgo(ts)}` : 'Signals not yet refreshed';
+  }
 
   // ── Update sortable headers ───────────────────────────────────────
   const thead = document.getElementById('pListHead');
@@ -787,6 +795,53 @@ async function refreshAllPositions() {
   if (summary.totalValue > 0) savePortfolioSnapshot(summary.totalValue);
   if (btn) btn.disabled = false;
   showToast('All positions updated');
+}
+
+async function refreshPortfolioSignals() {
+  const btn = document.getElementById('pRefreshAll');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Updating signals…'; }
+
+  const positions = loadPortfolio();
+  for (const p of positions) {
+    try {
+      const now   = Math.floor(Date.now() / 1000);
+      const start = now - 30 * 24 * 3600;
+      const data  = await fetchYahooOHLCV(p.symbol, start, now, '1d');
+      const ind   = buildIndicators(data);
+      const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
+      const lastRSI = ind.rsi.filter(v => v != null).pop();
+      const signal  = currentSignal(bestSignal, lastRSI, 0.5);
+      updatePositionLiveData(p.symbol, {
+        currentPrice: data.close[data.close.length - 1],
+        lastSignal:   signal,
+        name:         data.name || p.name,
+      });
+      await new Promise(r => setTimeout(r, 400));
+    } catch (e) { /* skip failed tickers */ }
+  }
+
+  saveSignalsUpdateTime();
+  state.portfolio = loadPortfolio();
+  renderPortfolioView();
+  renderDashboard();
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh All'; }
+  showToast('Portfolio signals updated');
+}
+
+function startAutoSignalRefresh() {
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+  function checkAndRefresh() {
+    const lastUpdate = loadSignalsUpdateTime();
+    if (loadPortfolio().length > 0 && (!lastUpdate || (Date.now() - lastUpdate) >= TWELVE_HOURS)) {
+      refreshPortfolioSignals();
+    }
+  }
+
+  // Check shortly after startup
+  setTimeout(checkAndRefresh, 4000);
+  // Re-check every 30 minutes so the 12 h mark is never missed by more than 30 min
+  setInterval(checkAndRefresh, 30 * 60 * 1000);
 }
 
 function removePos(symbol) {
