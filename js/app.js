@@ -802,22 +802,33 @@ async function refreshPortfolioSignals() {
   if (btn) { btn.disabled = true; btn.textContent = '↻ Updating signals…'; }
 
   const positions = loadPortfolio();
+  let failed = 0;
+
   for (const p of positions) {
-    try {
-      const now   = Math.floor(Date.now() / 1000);
-      const start = now - 30 * 24 * 3600;
-      const data  = await fetchYahooOHLCV(p.symbol, start, now, '1d');
-      const ind   = buildIndicators(data);
-      const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
-      const lastRSI = ind.rsi.filter(v => v != null).pop();
-      const signal  = currentSignal(bestSignal, lastRSI, 0.5);
-      updatePositionLiveData(p.symbol, {
-        currentPrice: data.close[data.close.length - 1],
-        lastSignal:   signal,
-        name:         data.name || p.name,
-      });
-      await new Promise(r => setTimeout(r, 400));
-    } catch (e) { /* skip failed tickers */ }
+    let ok = false;
+    for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000)); // back-off on retry
+        const now   = Math.floor(Date.now() / 1000);
+        // 90 days → Ichimoku spanB needs 52 bars, EMA(200) needs warm-up; 30 days was too short
+        const start = now - 90 * 24 * 3600;
+        const data  = await fetchYahooOHLCV(p.symbol, start, now, '1d');
+        const ind   = buildIndicators(data);
+        const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
+        const lastRSI = ind.rsi.filter(v => v != null).pop();
+        const signal  = currentSignal(bestSignal, lastRSI, 0.5);
+        updatePositionLiveData(p.symbol, {
+          currentPrice: data.close[data.close.length - 1],
+          lastSignal:   signal,
+          name:         data.name || p.name,
+        });
+        ok = true;
+      } catch (e) {
+        console.warn(`[Morfeo] Signal refresh failed for ${p.symbol} (attempt ${attempt + 1}):`, e.message);
+      }
+    }
+    if (!ok) failed++;
+    await new Promise(r => setTimeout(r, 500));
   }
 
   saveSignalsUpdateTime();
@@ -825,7 +836,11 @@ async function refreshPortfolioSignals() {
   renderPortfolioView();
   renderDashboard();
   if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh All'; }
-  showToast('Portfolio signals updated');
+  showToast(failed > 0
+    ? `Signals updated — ${failed} symbol${failed > 1 ? 's' : ''} failed (see console)`
+    : 'Portfolio signals updated',
+    failed > 0 ? 'error' : 'ok'
+  );
 }
 
 function startAutoSignalRefresh() {
@@ -959,31 +974,46 @@ function analyseFromWatchlist(symbol) {
 async function refreshWatchlist() {
   const btn = document.getElementById('wRefreshBtn');
   if (btn) btn.disabled = true;
+  let failed = 0;
+
   for (const w of state.watchlist) {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      const start = now - 30 * 24 * 3600;
-      const data = await fetchYahooOHLCV(w.symbol, start, now, '1d');
-      const ind = buildIndicators(data);
-      const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
-      const lastRSI = ind.rsi.filter(v => v != null).pop();
-      const signal = currentSignal(bestSignal, lastRSI, 0.5);
-      const list = loadWatchlist();
-      const idx = list.findIndex(l => l.symbol === w.symbol);
-      if (idx >= 0) {
-        list[idx].currentPrice = data.close[data.close.length - 1];
-        list[idx].lastSignal = signal;
-        list[idx].name = data.name;
-        list[idx].lastUpdated = Date.now();
-        saveWatchlist(list);
+    let ok = false;
+    for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+        const now = Math.floor(Date.now() / 1000);
+        const start = now - 90 * 24 * 3600; // 90 days for reliable indicators
+        const data = await fetchYahooOHLCV(w.symbol, start, now, '1d');
+        const ind = buildIndicators(data);
+        const { bestSignal } = await optimise(data.close, ind, { nTrials: 100 });
+        const lastRSI = ind.rsi.filter(v => v != null).pop();
+        const signal = currentSignal(bestSignal, lastRSI, 0.5);
+        const list = loadWatchlist();
+        const idx = list.findIndex(l => l.symbol === w.symbol);
+        if (idx >= 0) {
+          list[idx].currentPrice = data.close[data.close.length - 1];
+          list[idx].lastSignal = signal;
+          list[idx].name = data.name;
+          list[idx].lastUpdated = Date.now();
+          saveWatchlist(list);
+        }
+        ok = true;
+      } catch (e) {
+        console.warn(`[Morfeo] Watchlist refresh failed for ${w.symbol} (attempt ${attempt + 1}):`, e.message);
       }
-      await new Promise(r => setTimeout(r, 400));
-    } catch (e) { /* skip failed tickers */ }
+    }
+    if (!ok) failed++;
+    await new Promise(r => setTimeout(r, 500));
   }
+
   state.watchlist = loadWatchlist();
   renderWatchlistView();
   if (btn) btn.disabled = false;
-  showToast('Watchlist refreshed');
+  showToast(failed > 0
+    ? `Watchlist refreshed — ${failed} symbol${failed > 1 ? 's' : ''} failed (see console)`
+    : 'Watchlist refreshed',
+    failed > 0 ? 'error' : 'ok'
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════
