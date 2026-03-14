@@ -133,7 +133,7 @@ function positionPnL(pos) {
 // ── USD → EUR conversion rate ─────────────────────────────────────
 // Cached in localStorage for 1 hour; falls back to 1.0 if unavailable.
 
-const FX_RATE_KEY = 'morfeo_usd_eur_rate_v1';
+const FX_RATE_KEY = 'morfeo_usd_eur_rate_v2';
 
 let _usdEurRate = (() => {
   try {
@@ -146,19 +146,15 @@ let _usdEurRate = (() => {
 async function fetchUsdEurRate() {
   try {
     const now = Math.floor(Date.now() / 1000);
-    const start = now - 5 * 24 * 3600;
-    const r = await fetch(`/api/ohlcv?symbol=EURUSD%3DX&period1=${start}&period2=${now}&interval=1d`);
-    if (r.ok) {
-      const json = await r.json();
-      const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      if (closes?.length) {
-        const last = closes.filter(v => v != null).pop();
-        if (last) {
-          // EURUSD=X: 1 EUR = `last` USD  →  1 USD = 1/last EUR
-          _usdEurRate = 1 / last;
-          localStorage.setItem(FX_RATE_KEY, JSON.stringify({ rate: _usdEurRate, ts: Date.now() }));
-        }
-      }
+    const start = now - 7 * 24 * 3600;
+    // reuse fetchYahooOHLCV — handles proxy + direct Yahoo + allorigins fallbacks
+    const data = await fetchYahooOHLCV('EURUSD=X', start, now, '1d');
+    const last = data.close[data.close.length - 1];
+    if (last) {
+      // EURUSD=X: 1 EUR = `last` USD  →  1 USD = 1/last EUR
+      _usdEurRate = 1 / last;
+      localStorage.setItem(FX_RATE_KEY, JSON.stringify({ rate: _usdEurRate, ts: Date.now() }));
+      console.log(`[Morfeo] USD→EUR rate updated: 1 USD = ${_usdEurRate.toFixed(4)} EUR`);
     }
   } catch (e) {
     console.warn('[Morfeo] Could not fetch USD/EUR rate:', e.message);
