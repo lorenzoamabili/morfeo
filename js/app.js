@@ -510,6 +510,7 @@ async function addPositionManual() {
 
     const portfolio = loadPortfolio();
     const idx = portfolio.findIndex(p => p.symbol === sym);
+    const priceCurrency = latest.currency || 'USD';
     const entry = {
       symbol: sym,
       name,
@@ -518,6 +519,7 @@ async function addPositionManual() {
       buyDate: buyDate || null,
       addedAt: Date.now(),
       currentPrice: buyPrice,
+      priceCurrency,
       lastSignal: null,
       lastUpdated: Date.now(),
       sector: sector || null,
@@ -534,14 +536,15 @@ async function addPositionManual() {
         shares: totalShares,
         buyPrice: avgPrice,
         currentPrice: buyPrice,
+        priceCurrency,
         lastUpdated: Date.now(),
         sector: sector || ex.sector || null,
         dividendYield: (dividendYield ?? ex.dividendYield ?? 0),
       };
-      toastMsg = `${sym} averaged — ${totalShares} shares @ avg ${fmtCurrency(avgPrice)}`;
+      toastMsg = `${sym} averaged — ${totalShares} shares @ avg ${fmtCurrency(avgPrice, 'EUR', priceCurrency)}`;
     } else {
       portfolio.push(entry);
-      toastMsg = `${sym} added — ${shares} shares @ ${fmtCurrency(buyPrice)}`;
+      toastMsg = `${sym} added — ${shares} shares @ ${fmtCurrency(buyPrice, 'EUR', priceCurrency)}`;
     }
     savePortfolio(portfolio);
 
@@ -570,7 +573,7 @@ function renderDashboard() {
   const summary = portfolioSummary(state.portfolio);
   const currency = state.settings?.currency || 'EUR';
 
-  document.getElementById('dTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
+  document.getElementById('dTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency, 'EUR');
   document.getElementById('dTotalPnL').textContent = fmtPct(summary.totalPnLPct);
   document.getElementById('dTotalPnL').className = 'stat-value ' + (summary.totalPnLPct >= 0 ? 'pos' : 'neg');
   document.getElementById('dPositions').textContent = summary.positions;
@@ -593,7 +596,7 @@ function renderDashboard() {
           <span class="text-muted text-xs" style="margin-left:8px;">${p.name}</span>
         </div>
         <div class="flex gap-8 items-center">
-          <span class="text-xs text-muted">${p.currentPrice ? fmtCurrency(p.currentPrice) : '—'}</span>
+          <span class="text-xs text-muted">${p.currentPrice ? fmtCurrency(p.currentPrice, 'EUR', p.priceCurrency || 'USD') : '—'}</span>
           <span class="badge ${signalBadgeClass(p.lastSignal)}">${p.lastSignal}</span>
         </div>
       </div>`).join('');
@@ -610,7 +613,7 @@ function renderDashboard() {
         <div class="flex items-center justify-between" style="padding:9px 0; border-bottom:1px solid var(--border);">
           <div>
             <span style="font-weight:500; font-size:12px;">${p.symbol}</span>
-            <span class="text-muted text-xs" style="margin-left:6px;">${p.shares} sh @ ${fmtCurrency(p.buyPrice)}</span>
+            <span class="text-muted text-xs" style="margin-left:6px;">${p.shares} sh @ ${fmtCurrency(p.buyPrice, 'EUR', p.priceCurrency || 'USD')}</span>
           </div>
           <div class="flex gap-8 items-center">
             <span class="text-xs ${pnlPct >= 0 ? 'text-green' : 'text-red'}">${fmtPct(pnlPct)}</span>
@@ -667,8 +670,8 @@ function renderPortfolioView() {
   const summary  = portfolioSummary(state.portfolio);
   const currency = state.settings?.currency || 'EUR';
 
-  document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
-  document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL, currency);
+  document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency, 'EUR');
+  document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL, currency, 'EUR');
   document.getElementById('pTotalPnL').className     = 'stat-value ' + (summary.totalPnL >= 0 ? 'pos' : 'neg');
   const pnlPctEl = document.getElementById('pTotalPnLPct');
   if (pnlPctEl) pnlPctEl.textContent = fmtPct(summary.totalPnLPct);
@@ -719,10 +722,10 @@ function renderPortfolioView() {
         <td><span style="font-weight:500;">${p.symbol}</span></td>
         <td class="text-muted text-xs">${p.name || '—'}</td>
         <td>${p.shares.toLocaleString()}</td>
-        <td>${fmtCurrency(p.buyPrice)}</td>
-        <td>${p.currentPrice ? fmtCurrency(p.currentPrice) : '—'}</td>
+        <td>${fmtCurrency(p.buyPrice, 'EUR', p.priceCurrency || 'USD')}</td>
+        <td>${p.currentPrice ? fmtCurrency(p.currentPrice, 'EUR', p.priceCurrency || 'USD') : '—'}</td>
         <td class="${pnlPct != null ? (pnlPct >= 0 ? 'text-green' : 'text-red') : ''}">
-          ${pnlPct != null ? fmtPct(pnlPct) + '<br><span style="font-size:10px;opacity:.7;">' + (pnl >= 0 ? '+' : '') + fmtCurrency(pnl) + '</span>' : '—'}
+          ${pnlPct != null ? fmtPct(pnlPct) + '<br><span style="font-size:10px;opacity:.7;">' + (pnl >= 0 ? '+' : '') + fmtCurrency(pnl, 'EUR', p.priceCurrency || 'USD') + '</span>' : '—'}
         </td>
         <td>${p.lastSignal ? `<span class="badge ${signalBadgeClass(p.lastSignal)}" title="${explainSignal(p.lastSignal)}">${p.lastSignal}</span>` : '—'}</td>
         <td class="text-xs">${divYield}</td>
@@ -769,14 +772,16 @@ async function refreshPosition(symbol) {
     const price = latest.price;
     const name  = latest.name || symbol;
 
+    const priceCurrency = latest.currency || 'USD';
     updatePositionLiveData(symbol, {
       currentPrice: price,
+      priceCurrency,
       name,
     });
     state.portfolio = loadPortfolio();
     renderPortfolioView();
     renderDashboard();
-    showToast(`${symbol} → ${fmtCurrency(price)}`);
+    showToast(`${symbol} → ${fmtCurrency(price, 'EUR', priceCurrency)}`);
   } catch (e) {
     showToast(`Failed to refresh ${symbol}: ${e.message}`, 'error');
   }
@@ -821,9 +826,10 @@ async function refreshPortfolioSignals() {
         const lastRSI = ind.rsi.filter(v => v != null).pop();
         const signal  = currentSignal(bestSignal, lastRSI, 0.5);
         updatePositionLiveData(p.symbol, {
-          currentPrice: data.close[data.close.length - 1],
-          lastSignal:   signal,
-          name:         data.name || p.name,
+          currentPrice:  data.close[data.close.length - 1],
+          priceCurrency: data.currency || 'USD',
+          lastSignal:    signal,
+          name:          data.name || p.name,
         });
         ok = true;
       } catch (e) {
@@ -936,7 +942,7 @@ function renderWatchlistView() {
     <tr>
       <td><span style="font-weight:500;">${w.symbol}</span></td>
       <td class="text-muted text-xs">${w.name || '—'}</td>
-      <td>${w.currentPrice ? fmtCurrency(w.currentPrice) : '—'}</td>
+      <td>${w.currentPrice ? fmtCurrency(w.currentPrice, 'EUR', w.priceCurrency || 'USD') : '—'}</td>
       <td>${w.lastSignal ? `<span class="badge ${signalBadgeClass(w.lastSignal)}" title="${explainSignal(w.lastSignal)}">${w.lastSignal}</span>` : '—'}</td>
       <td class="text-xs text-muted">${w.lastUpdated ? timeAgo(w.lastUpdated) : '—'}</td>
       <td>
@@ -994,10 +1000,11 @@ async function refreshWatchlist() {
         const list = loadWatchlist();
         const idx = list.findIndex(l => l.symbol === w.symbol);
         if (idx >= 0) {
-          list[idx].currentPrice = data.close[data.close.length - 1];
-          list[idx].lastSignal = signal;
-          list[idx].name = data.name;
-          list[idx].lastUpdated = Date.now();
+          list[idx].currentPrice  = data.close[data.close.length - 1];
+          list[idx].priceCurrency = data.currency || 'USD';
+          list[idx].lastSignal    = signal;
+          list[idx].name          = data.name;
+          list[idx].lastUpdated   = Date.now();
           saveWatchlist(list);
         }
         ok = true;

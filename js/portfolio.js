@@ -100,8 +100,9 @@ function removeFromWatchlist(symbol) {
 function portfolioSummary(portfolio) {
   const withPrice = portfolio.filter(p => p.currentPrice != null);
 
-  const totalCost = portfolio.reduce((s, p) => s + p.shares * p.buyPrice, 0);
-  const totalValue = withPrice.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+  // Convert each position to EUR using its native currency before summing
+  const totalCost  = portfolio.reduce((s, p) => s + p.shares * convertToEur(p.buyPrice,      p.priceCurrency), 0);
+  const totalValue = withPrice.reduce((s, p) => s + p.shares * convertToEur(p.currentPrice,  p.priceCurrency), 0);
   const totalPnL = totalValue - totalCost;
   const totalPnLPct = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
 
@@ -163,15 +164,24 @@ async function fetchUsdEurRate() {
 
 // ── Format helpers ────────────────────────────────────────────────
 
-function fmtCurrency(v, currency = 'EUR') {
+// Convert a value from sourceCurrency to EUR.
+// Only applies the USD→EUR rate; all other currencies pass through unchanged.
+function convertToEur(v, sourceCurrency = 'USD') {
+  if (v == null) return null;
+  return (sourceCurrency === 'USD') ? v * _usdEurRate : v;
+}
+
+// sourceCurrency: the native currency of the raw value (e.g. 'USD' for US stocks, 'EUR' for Italian stocks).
+// Conversion is only applied when displayCurrency === 'EUR' and sourceCurrency === 'USD'.
+function fmtCurrency(v, displayCurrency = 'EUR', sourceCurrency = 'USD') {
   if (v == null) return '—';
-  const converted = currency === 'EUR' ? v * _usdEurRate : v;
-  const abs = Math.abs(converted);
+  const val = displayCurrency === 'EUR' ? convertToEur(v, sourceCurrency) : v;
+  const abs = Math.abs(val);
   const str = abs >= 1000
     ? abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
     : abs.toFixed(2);
-  const sign = converted < 0 ? '-' : '';
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency + ' ';
+  const sign = val < 0 ? '-' : '';
+  const sym = displayCurrency === 'USD' ? '$' : displayCurrency === 'EUR' ? '€' : displayCurrency + ' ';
   return `${sign}${sym}${str}`;
 }
 
