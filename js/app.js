@@ -565,7 +565,7 @@ function renderDashboard() {
   state.watchlist = loadWatchlist();
 
   const summary = portfolioSummary(state.portfolio);
-  const currency = state.settings?.currency || 'USD';
+  const currency = state.settings?.currency || 'EUR';
 
   document.getElementById('dTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
   document.getElementById('dTotalPnL').textContent = fmtPct(summary.totalPnLPct);
@@ -662,7 +662,7 @@ function _sortArrow(col) {
 function renderPortfolioView() {
   state.portfolio = loadPortfolio();
   const summary  = portfolioSummary(state.portfolio);
-  const currency = state.settings?.currency || 'USD';
+  const currency = state.settings?.currency || 'EUR';
 
   document.getElementById('pTotalValue').textContent = fmtCurrency(summary.totalValue || 0, currency);
   document.getElementById('pTotalPnL').textContent   = (summary.totalPnL >= 0 ? '+' : '') + fmtCurrency(summary.totalPnL, currency);
