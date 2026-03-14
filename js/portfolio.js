@@ -24,7 +24,9 @@ const DEFAULT_SETTINGS = {
 function loadSettings() {
   try {
     const s = localStorage.getItem(SETTINGS_KEY);
-    return s ? { ...DEFAULT_SETTINGS, ...JSON.parse(s) } : { ...DEFAULT_SETTINGS };
+    const settings = s ? { ...DEFAULT_SETTINGS, ...JSON.parse(s) } : { ...DEFAULT_SETTINGS };
+    settings.currency = 'EUR';
+    return settings;
   } catch (e) { return { ...DEFAULT_SETTINGS }; }
 }
 
